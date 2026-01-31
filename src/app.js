@@ -317,10 +317,15 @@ async function showCropScreen(imageData) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    // Update overlay viewBox to match canvas
+    // Position overlay to match canvas exactly
+    const canvasRect = canvas.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
     el.cropOverlay.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
     el.cropOverlay.style.width = canvas.width + 'px';
     el.cropOverlay.style.height = canvas.height + 'px';
+    el.cropOverlay.style.left = (canvasRect.left - containerRect.left) + 'px';
+    el.cropOverlay.style.top = (canvasRect.top - containerRect.top) + 'px';
 
     // Try to detect document edges
     try {
