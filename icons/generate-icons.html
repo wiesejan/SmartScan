@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartScan Icon Generator</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 { color: #2563eb; }
+    .preview {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin: 30px 0;
+      flex-wrap: wrap;
+    }
+    .preview-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    canvas {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #1d4ed8; }
+    .instructions {
+      background: #f1f5f9;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: left;
+      margin-top: 30px;
+    }
+    code {
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>SmartScan Icon Generator</h1>
+  <p>Generate PWA icons for SmartScan</p>
+
+  <div class="preview">
+    <div class="preview-item">
+      <canvas id="canvas-512" width="512" height="512"></canvas>
+      <span>512x512</span>
+      <button onclick="download('canvas-512', 'icon-512.png')">Download</button>
+    </div>
+    <div class="preview-item">
+      <canvas id="canvas-192" width="192" height="192"></canvas>
+      <span>192x192</span>
+      <button onclick="download('canvas-192', 'icon-192.png')">Download</button>
+    </div>
+    <div class="preview-item">
+      <canvas id="canvas-32" width="32" height="32"></canvas>
+      <span>32x32 (favicon)</span>
+      <button onclick="download('canvas-32', 'favicon.png')">Download</button>
+    </div>
+  </div>
+
+  <button onclick="downloadAll()">Download All Icons</button>
+
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ol>
+      <li>Click "Download All Icons" or download individually</li>
+      <li>Move the downloaded files to the <code>icons/</code> folder</li>
+      <li>For favicon.ico, you can use the PNG or convert using an online tool</li>
+    </ol>
+  </div>
+
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const scale = size / 512;
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#3b82f6');
+      gradient.addColorStop(1, '#1d4ed8');
+
+      // Rounded rectangle background
+      ctx.beginPath();
+      const radius = 96 * scale;
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(size - radius, 0);
+      ctx.quadraticCurveTo(size, 0, size, radius);
+      ctx.lineTo(size, size - radius);
+      ctx.quadraticCurveTo(size, size, size - radius, size);
+      ctx.lineTo(radius, size);
+      ctx.quadraticCurveTo(0, size, 0, size - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Document (white rounded rect)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      roundRect(ctx, 140 * scale, 80 * scale, 232 * scale, 300 * scale, 16 * scale);
+
+      // Document lines
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+      const lines = [
+        { y: 140, w: 152 },
+        { y: 176, w: 152 },
+        { y: 212, w: 120 },
+        { y: 248, w: 152 },
+        { y: 284, w: 80 }
+      ];
+      lines.forEach(line => {
+        roundRect(ctx, 180 * scale, line.y * scale, line.w * scale, 16 * scale, 4 * scale);
+      });
+
+      // Green checkmark circle
+      ctx.beginPath();
+      ctx.arc(372 * scale, 380 * scale, 80 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = '#22c55e';
+      ctx.fill();
+
+      // Checkmark
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 16 * scale;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(332 * scale, 380 * scale);
+      ctx.lineTo(358 * scale, 406 * scale);
+      ctx.lineTo(412 * scale, 352 * scale);
+      ctx.stroke();
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function download(canvasId, filename) {
+      const canvas = document.getElementById(canvasId);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function downloadAll() {
+      download('canvas-512', 'icon-512.png');
+      setTimeout(() => download('canvas-192', 'icon-192.png'), 100);
+      setTimeout(() => download('canvas-32', 'favicon.png'), 200);
+    }
+
+    // Draw all icons on load
+    window.onload = function() {
+      ['canvas-512', 'canvas-192', 'canvas-32'].forEach(id => {
+        drawIcon(document.getElementById(id));
+      });
+    };
+  </script>
+</body>
+</html>
