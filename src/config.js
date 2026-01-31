@@ -99,7 +99,10 @@ export function getRedirectUri() {
   if (CONFIG.dropbox.redirectUri) {
     return CONFIG.dropbox.redirectUri;
   }
-  // Auto-detect from current URL (always use root, no pathname)
-  const { protocol, host } = window.location;
-  return `${protocol}//${host}/`;
+  // Auto-detect from current URL
+  const { protocol, host, pathname } = window.location;
+  // For GitHub Pages, include the repo name in path
+  // e.g., https://user.github.io/SmartScan/
+  const basePath = pathname.endsWith('/') ? pathname : pathname + '/';
+  return `${protocol}//${host}${basePath}`;
 }
