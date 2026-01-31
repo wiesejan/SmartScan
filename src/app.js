@@ -9,6 +9,7 @@ import { dropboxAPI } from './dropbox-api.js';
 import { claudeAPI } from './claude-api.js';
 import { camera } from './camera.js';
 import { pdfConverter } from './pdf-converter.js';
+import { scanner } from './scanner.js';
 import {
   initUI,
   showScreen,
@@ -132,6 +133,14 @@ function bindEvents() {
   });
   el.fileUpload.addEventListener('change', handleFileUpload);
 
+  // Crop screen
+  el.btnCropBack.addEventListener('click', () => {
+    resetForNewScan();
+    showScreen('home');
+  });
+  el.btnCropApply.addEventListener('click', applyCropAndContinue);
+  initCropHandles();
+
   // Edit screen
   el.btnEditBack.addEventListener('click', () => {
     resetForNewScan();
@@ -229,7 +238,7 @@ async function captureImage() {
   try {
     const imageData = await camera.capture();
     camera.stop();
-    await processImage(imageData);
+    await showCropScreen(imageData);
   } catch (error) {
     console.error('Capture error:', error);
     showToast('Fehler beim Aufnehmen: ' + error.message, 'error');
@@ -259,7 +268,7 @@ async function handleFileUpload(e) {
     camera.stop();
     camera.init(null, document.getElementById('camera-canvas'));
     const imageData = await camera.processFile(file);
-    await processImage(imageData);
+    await showCropScreen(imageData);
   } catch (error) {
     console.error('File upload error:', error);
     showToast('Fehler beim Laden: ' + error.message, 'error');
@@ -267,6 +276,227 @@ async function handleFileUpload(e) {
 
   // Reset input
   e.target.value = '';
+}
+
+// Store current crop state
+let cropState = {
+  imageData: null,
+  corners: null,
+  originalImage: null
+};
+
+/**
+ * Show the crop screen with edge detection
+ * @param {Object} imageData - { blob, base64, dataUrl }
+ */
+async function showCropScreen(imageData) {
+  cropState.imageData = imageData;
+  const el = getElements();
+
+  // Show crop screen
+  showScreen('crop');
+  el.cropStatus.textContent = 'Dokument wird erkannt...';
+
+  // Load image onto canvas
+  const img = new Image();
+  img.onload = async () => {
+    cropState.originalImage = img;
+
+    // Set canvas size
+    const canvas = el.cropCanvas;
+    const container = canvas.parentElement;
+    const maxWidth = container.clientWidth;
+    const maxHeight = container.clientHeight;
+
+    // Calculate scale to fit
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    // Draw image
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Update overlay viewBox to match canvas
+    el.cropOverlay.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
+    el.cropOverlay.style.width = canvas.width + 'px';
+    el.cropOverlay.style.height = canvas.height + 'px';
+
+    // Try to detect document edges
+    try {
+      await scanner.init();
+      const detection = scanner.detectDocument(canvas);
+      cropState.corners = detection.corners.map(c => ({
+        x: c.x * scale,
+        y: c.y * scale
+      }));
+
+      if (detection.confidence > 0.3) {
+        el.cropStatus.textContent = `Dokument erkannt (${Math.round(detection.confidence * 100)}%)`;
+      } else {
+        el.cropStatus.textContent = 'Ecken manuell anpassen';
+      }
+    } catch (error) {
+      console.warn('Edge detection failed:', error);
+      // Default to image corners
+      cropState.corners = [
+        { x: 20, y: 20 },
+        { x: canvas.width - 20, y: 20 },
+        { x: canvas.width - 20, y: canvas.height - 20 },
+        { x: 20, y: canvas.height - 20 }
+      ];
+      el.cropStatus.textContent = 'Ecken manuell anpassen';
+    }
+
+    // Update polygon and handles
+    updateCropOverlay();
+  };
+
+  img.src = imageData.dataUrl;
+}
+
+/**
+ * Update the crop overlay polygon and handles
+ */
+function updateCropOverlay() {
+  const el = getElements();
+  const corners = cropState.corners;
+
+  if (!corners) return;
+
+  // Update polygon
+  const points = corners.map(c => `${c.x},${c.y}`).join(' ');
+  el.cropPolygon.setAttribute('points', points);
+
+  // Update handles
+  el.cropHandles.tl.setAttribute('cx', corners[0].x);
+  el.cropHandles.tl.setAttribute('cy', corners[0].y);
+  el.cropHandles.tr.setAttribute('cx', corners[1].x);
+  el.cropHandles.tr.setAttribute('cy', corners[1].y);
+  el.cropHandles.br.setAttribute('cx', corners[2].x);
+  el.cropHandles.br.setAttribute('cy', corners[2].y);
+  el.cropHandles.bl.setAttribute('cx', corners[3].x);
+  el.cropHandles.bl.setAttribute('cy', corners[3].y);
+}
+
+/**
+ * Initialize crop handle dragging
+ */
+function initCropHandles() {
+  const el = getElements();
+  const handles = ['tl', 'tr', 'br', 'bl'];
+
+  handles.forEach((handle, index) => {
+    const element = el.cropHandles[handle];
+    let isDragging = false;
+
+    const startDrag = (e) => {
+      e.preventDefault();
+      isDragging = true;
+      element.style.cursor = 'grabbing';
+    };
+
+    const doDrag = (e) => {
+      if (!isDragging || !cropState.corners) return;
+
+      const svg = el.cropOverlay;
+      const rect = svg.getBoundingClientRect();
+      const viewBox = svg.viewBox.baseVal;
+
+      // Get pointer position
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      // Convert to SVG coordinates
+      const x = ((clientX - rect.left) / rect.width) * viewBox.width;
+      const y = ((clientY - rect.top) / rect.height) * viewBox.height;
+
+      // Clamp to canvas bounds
+      cropState.corners[index] = {
+        x: Math.max(0, Math.min(viewBox.width, x)),
+        y: Math.max(0, Math.min(viewBox.height, y))
+      };
+
+      updateCropOverlay();
+    };
+
+    const endDrag = () => {
+      isDragging = false;
+      element.style.cursor = 'move';
+    };
+
+    // Mouse events
+    element.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', endDrag);
+
+    // Touch events
+    element.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', doDrag, { passive: false });
+    document.addEventListener('touchend', endDrag);
+  });
+}
+
+/**
+ * Apply crop and enhancement, then continue to AI analysis
+ */
+async function applyCropAndContinue() {
+  const el = getElements();
+
+  showScreen('processing');
+  updateProcessingStatus('Dokument wird optimiert...', 'Zuschneiden und Verbessern');
+
+  try {
+    const canvas = el.cropCanvas;
+    const autoEnhance = el.cropAutoEnhance.checked;
+    const bwMode = el.cropBwMode.checked;
+
+    await scanner.init();
+
+    // Get corners in original image coordinates
+    const viewBox = el.cropOverlay.viewBox.baseVal;
+    const scaleX = cropState.originalImage.width / viewBox.width;
+    const scaleY = cropState.originalImage.height / viewBox.height;
+
+    const originalCorners = cropState.corners.map(c => ({
+      x: c.x * scaleX,
+      y: c.y * scaleY
+    }));
+
+    // Apply perspective transform
+    let resultCanvas = scanner.perspectiveTransform(cropState.originalImage, originalCorners);
+
+    // Apply enhancements
+    if (bwMode) {
+      resultCanvas = scanner.toBlackAndWhite(resultCanvas);
+    } else if (autoEnhance) {
+      try {
+        resultCanvas = scanner.enhance(resultCanvas);
+      } catch (e) {
+        console.warn('Enhancement failed:', e);
+        resultCanvas = scanner.simpleEnhance(resultCanvas);
+      }
+    }
+
+    // Convert canvas to image data
+    const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.9);
+    const base64 = dataUrl.split(',')[1];
+
+    const processedImageData = {
+      dataUrl,
+      base64,
+      blob: await (await fetch(dataUrl)).blob()
+    };
+
+    // Continue to AI analysis
+    await processImage(processedImageData);
+
+  } catch (error) {
+    console.error('Crop error:', error);
+    showToast('Fehler bei Bildoptimierung: ' + error.message, 'error');
+    // Continue with original image
+    await processImage(cropState.imageData);
+  }
 }
 
 /**

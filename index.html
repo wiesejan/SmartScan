@@ -18,6 +18,8 @@
 
   <!-- jsPDF for PDF conversion -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <!-- OpenCV.js for document scanning -->
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js" onload="console.log('OpenCV.js loaded')"></script>
 </head>
 <body>
   <div class="app" id="app">
@@ -127,6 +129,51 @@
           </svg>
           Zurück
         </button>
+      </section>
+
+      <!-- Crop Screen -->
+      <section class="screen crop" id="screen-crop" aria-label="Zuschneiden">
+        <div class="crop__container">
+          <canvas class="crop__canvas" id="crop-canvas"></canvas>
+          <svg class="crop__overlay" id="crop-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon id="crop-polygon" points="10,10 90,10 90,90 10,90" fill="rgba(37, 99, 235, 0.2)" stroke="#2563eb" stroke-width="2"/>
+            <circle class="crop__handle" id="handle-tl" cx="10" cy="10" r="12" fill="#2563eb"/>
+            <circle class="crop__handle" id="handle-tr" cx="90" cy="10" r="12" fill="#2563eb"/>
+            <circle class="crop__handle" id="handle-br" cx="90" cy="90" r="12" fill="#2563eb"/>
+            <circle class="crop__handle" id="handle-bl" cx="10" cy="90" r="12" fill="#2563eb"/>
+          </svg>
+        </div>
+
+        <div class="crop__controls">
+          <div class="crop__enhance-options">
+            <label class="crop__option">
+              <input type="checkbox" id="crop-auto-enhance" checked>
+              <span>Auto-Optimierung</span>
+            </label>
+            <label class="crop__option">
+              <input type="checkbox" id="crop-bw-mode">
+              <span>Schwarz/Weiß</span>
+            </label>
+          </div>
+
+          <div class="crop__actions">
+            <button type="button" class="btn btn--secondary" id="btn-crop-back">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Zurück
+            </button>
+            <button type="button" class="btn btn--primary" id="btn-crop-apply">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Anwenden
+            </button>
+          </div>
+        </div>
+
+        <div class="crop__status" id="crop-status">Dokument erkannt</div>
       </section>
 
       <!-- Processing Screen -->

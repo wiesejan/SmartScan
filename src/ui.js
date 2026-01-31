@@ -57,6 +57,7 @@ export function initUI() {
   screens = {
     home: document.getElementById('screen-home'),
     camera: document.getElementById('screen-camera'),
+    crop: document.getElementById('screen-crop'),
     processing: document.getElementById('screen-processing'),
     edit: document.getElementById('screen-edit'),
     success: document.getElementById('screen-success')
@@ -75,6 +76,22 @@ export function initUI() {
     btnSwitchCamera: document.getElementById('btn-switch-camera'),
     btnCameraBack: document.getElementById('btn-camera-back'),
     fileUpload: document.getElementById('file-upload'),
+
+    // Crop
+    cropCanvas: document.getElementById('crop-canvas'),
+    cropOverlay: document.getElementById('crop-overlay'),
+    cropPolygon: document.getElementById('crop-polygon'),
+    cropHandles: {
+      tl: document.getElementById('handle-tl'),
+      tr: document.getElementById('handle-tr'),
+      br: document.getElementById('handle-br'),
+      bl: document.getElementById('handle-bl')
+    },
+    cropAutoEnhance: document.getElementById('crop-auto-enhance'),
+    cropBwMode: document.getElementById('crop-bw-mode'),
+    cropStatus: document.getElementById('crop-status'),
+    btnCropBack: document.getElementById('btn-crop-back'),
+    btnCropApply: document.getElementById('btn-crop-apply'),
 
     // Processing
     processingPreview: document.getElementById('processing-preview'),
