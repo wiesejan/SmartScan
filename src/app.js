@@ -128,6 +128,7 @@ function bindEvents() {
   el.btnCapture.addEventListener('click', captureImage);
   el.btnSwitchCamera.addEventListener('click', switchCamera);
   el.btnCameraBack.addEventListener('click', () => {
+    stopAutoDetection();
     camera.stop();
     showScreen('home');
   });
@@ -197,6 +198,15 @@ function handleKeyboard(e) {
   }
 }
 
+// Auto-detection state
+let detectionState = {
+  isRunning: false,
+  lastCorners: null,
+  stableFrames: 0,
+  requiredStableFrames: 15, // ~0.5 seconds at 30fps
+  animationFrame: null
+};
+
 /**
  * Start scanning workflow
  */
@@ -217,6 +227,8 @@ async function startScan() {
   resetForNewScan();
   showScreen('camera');
 
+  const el = getElements();
+
   // Initialize camera
   try {
     camera.init(
@@ -224,6 +236,15 @@ async function startScan() {
       document.getElementById('camera-canvas')
     );
     await camera.start();
+
+    // Initialize scanner for auto-detection
+    try {
+      await scanner.init();
+      startAutoDetection();
+    } catch (e) {
+      console.warn('Auto-detection not available:', e);
+      el.cameraStatus.textContent = 'Manuell aufnehmen';
+    }
   } catch (error) {
     console.error('Camera error:', error);
     showToast(error.message, 'error');
@@ -232,9 +253,150 @@ async function startScan() {
 }
 
 /**
+ * Start auto document detection loop
+ */
+function startAutoDetection() {
+  const el = getElements();
+  const video = el.cameraVideo;
+  const guide = el.cameraGuide;
+  const status = el.cameraStatus;
+
+  detectionState.isRunning = true;
+  detectionState.stableFrames = 0;
+  detectionState.lastCorners = null;
+
+  // Create a temporary canvas for detection
+  const detectCanvas = document.createElement('canvas');
+  const detectCtx = detectCanvas.getContext('2d');
+
+  function detectFrame() {
+    if (!detectionState.isRunning || state.screen !== 'camera') {
+      return;
+    }
+
+    try {
+      // Capture frame at reduced resolution for performance
+      const scale = 0.5;
+      detectCanvas.width = video.videoWidth * scale;
+      detectCanvas.height = video.videoHeight * scale;
+      detectCtx.drawImage(video, 0, 0, detectCanvas.width, detectCanvas.height);
+
+      // Detect document
+      const detection = scanner.detectDocument(detectCanvas);
+
+      if (detection.confidence > 0.3) {
+        // Scale corners back to video size
+        const corners = detection.corners.map(c => ({
+          x: c.x / scale,
+          y: c.y / scale
+        }));
+
+        // Update guide to show detected area
+        updateCameraGuide(corners, video.videoWidth, video.videoHeight);
+
+        // Check stability
+        if (isCornersStable(corners)) {
+          detectionState.stableFrames++;
+
+          if (detectionState.stableFrames >= detectionState.requiredStableFrames) {
+            // Document is stable - auto capture!
+            guide.className = 'camera__guide camera__guide--stable';
+            status.textContent = 'Aufnahme...';
+            status.classList.add('camera__status--ready');
+
+            stopAutoDetection();
+            setTimeout(() => captureImage(), 300);
+            return;
+          } else {
+            guide.className = 'camera__guide camera__guide--detected';
+            const progress = Math.round((detectionState.stableFrames / detectionState.requiredStableFrames) * 100);
+            status.textContent = `Stabilisieren... ${progress}%`;
+          }
+        } else {
+          detectionState.stableFrames = 0;
+          guide.className = 'camera__guide camera__guide--detected';
+          status.textContent = 'Dokument erkannt - ruhig halten';
+        }
+
+        detectionState.lastCorners = corners;
+      } else {
+        // No document detected
+        detectionState.stableFrames = 0;
+        detectionState.lastCorners = null;
+        guide.className = 'camera__guide camera__guide--searching';
+        guide.style.cssText = '';
+        status.textContent = 'Dokument suchen...';
+        status.classList.remove('camera__status--ready');
+      }
+    } catch (e) {
+      // Detection failed, continue searching
+    }
+
+    detectionState.animationFrame = requestAnimationFrame(detectFrame);
+  }
+
+  // Start detection loop
+  detectionState.animationFrame = requestAnimationFrame(detectFrame);
+}
+
+/**
+ * Stop auto detection
+ */
+function stopAutoDetection() {
+  detectionState.isRunning = false;
+  if (detectionState.animationFrame) {
+    cancelAnimationFrame(detectionState.animationFrame);
+    detectionState.animationFrame = null;
+  }
+}
+
+/**
+ * Update camera guide to match detected corners
+ */
+function updateCameraGuide(corners, videoWidth, videoHeight) {
+  const el = getElements();
+  const guide = el.cameraGuide;
+  const viewfinder = el.cameraVideo.parentElement;
+
+  const rect = viewfinder.getBoundingClientRect();
+  const scaleX = rect.width / videoWidth;
+  const scaleY = rect.height / videoHeight;
+
+  // Calculate bounding box of corners
+  const minX = Math.min(...corners.map(c => c.x)) * scaleX;
+  const maxX = Math.max(...corners.map(c => c.x)) * scaleX;
+  const minY = Math.min(...corners.map(c => c.y)) * scaleY;
+  const maxY = Math.max(...corners.map(c => c.y)) * scaleY;
+
+  guide.style.left = minX + 'px';
+  guide.style.top = minY + 'px';
+  guide.style.width = (maxX - minX) + 'px';
+  guide.style.height = (maxY - minY) + 'px';
+}
+
+/**
+ * Check if detected corners are stable (not moving much)
+ */
+function isCornersStable(corners) {
+  if (!detectionState.lastCorners) return false;
+
+  const threshold = 10; // pixels
+  for (let i = 0; i < 4; i++) {
+    const dx = Math.abs(corners[i].x - detectionState.lastCorners[i].x);
+    const dy = Math.abs(corners[i].y - detectionState.lastCorners[i].y);
+    if (dx > threshold || dy > threshold) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Capture image from camera
  */
 async function captureImage() {
+  stopAutoDetection();
+
   try {
     const imageData = await camera.capture();
     camera.stop();
@@ -452,10 +614,6 @@ async function applyCropAndContinue() {
   updateProcessingStatus('Dokument wird optimiert...', 'Zuschneiden und Verbessern');
 
   try {
-    const canvas = el.cropCanvas;
-    const autoEnhance = el.cropAutoEnhance.checked;
-    const bwMode = el.cropBwMode.checked;
-
     await scanner.init();
 
     // Get corners in original image coordinates
@@ -471,16 +629,12 @@ async function applyCropAndContinue() {
     // Apply perspective transform
     let resultCanvas = scanner.perspectiveTransform(cropState.originalImage, originalCorners);
 
-    // Apply enhancements
-    if (bwMode) {
-      resultCanvas = scanner.toBlackAndWhite(resultCanvas);
-    } else if (autoEnhance) {
-      try {
-        resultCanvas = scanner.enhance(resultCanvas);
-      } catch (e) {
-        console.warn('Enhancement failed:', e);
-        resultCanvas = scanner.simpleEnhance(resultCanvas);
-      }
+    // Always apply auto enhancement
+    try {
+      resultCanvas = scanner.enhance(resultCanvas);
+    } catch (e) {
+      console.warn('Enhancement failed:', e);
+      resultCanvas = scanner.simpleEnhance(resultCanvas);
     }
 
     // Convert canvas to image data

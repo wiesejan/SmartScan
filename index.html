@@ -100,8 +100,9 @@
           <video class="camera__video" id="camera-video" autoplay playsinline></video>
           <canvas class="camera__canvas" id="camera-canvas"></canvas>
           <div class="camera__overlay">
-            <div class="camera__guide"></div>
+            <div class="camera__guide camera__guide--searching" id="camera-guide"></div>
           </div>
+          <div class="camera__status" id="camera-status">Dokument suchen...</div>
         </div>
         <div class="camera__controls">
           <label class="camera__upload-label" aria-label="Bild hochladen">
@@ -146,17 +147,6 @@
         </div>
 
         <div class="crop__controls">
-          <div class="crop__enhance-options">
-            <label class="crop__option">
-              <input type="checkbox" id="crop-auto-enhance" checked>
-              <span>Auto-Optimierung</span>
-            </label>
-            <label class="crop__option">
-              <input type="checkbox" id="crop-bw-mode">
-              <span>Schwarz/Weiß</span>
-            </label>
-          </div>
-
           <div class="crop__actions">
             <button type="button" class="btn btn--secondary" id="btn-crop-back">
               <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

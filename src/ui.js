@@ -72,6 +72,8 @@ export function initUI() {
     // Camera
     cameraVideo: document.getElementById('camera-video'),
     cameraCanvas: document.getElementById('camera-canvas'),
+    cameraGuide: document.getElementById('camera-guide'),
+    cameraStatus: document.getElementById('camera-status'),
     btnCapture: document.getElementById('btn-capture'),
     btnSwitchCamera: document.getElementById('btn-switch-camera'),
     btnCameraBack: document.getElementById('btn-camera-back'),
@@ -87,8 +89,6 @@ export function initUI() {
       br: document.getElementById('handle-br'),
       bl: document.getElementById('handle-bl')
     },
-    cropAutoEnhance: document.getElementById('crop-auto-enhance'),
-    cropBwMode: document.getElementById('crop-bw-mode'),
     cropStatus: document.getElementById('crop-status'),
     btnCropBack: document.getElementById('btn-crop-back'),
     btnCropApply: document.getElementById('btn-crop-apply'),
