@@ -184,10 +184,14 @@ body {
   flex-direction: column;
   padding: var(--spacing-lg);
   animation: fadeIn var(--transition-normal);
+  visibility: hidden;
+  position: relative;
+  overflow: hidden;
 }
 
 .screen.active {
   display: flex;
+  visibility: visible;
 }
 
 @keyframes fadeIn {
@@ -450,6 +454,15 @@ body {
 .crop.active {
   display: flex;
   flex-direction: column;
+}
+
+/* Ensure crop elements are completely hidden when screen is not active */
+.crop:not(.active) .crop__container,
+.crop:not(.active) .crop__controls,
+.crop:not(.active) .crop__overlay,
+.crop:not(.active) .crop__status {
+  display: none !important;
+  visibility: hidden !important;
 }
 
 .crop__container {
