@@ -496,24 +496,27 @@ async function showCropScreen(imageData) {
     try {
       await scanner.init();
       const detection = scanner.detectDocument(canvas);
-      cropState.corners = detection.corners.map(c => ({
-        x: c.x * scale,
-        y: c.y * scale
-      }));
+
+      // Detection is already in canvas coordinates (we passed the scaled canvas)
+      // No additional scaling needed!
+      cropState.corners = detection.corners;
 
       if (detection.confidence > 0.3) {
         el.cropStatus.textContent = `Dokument erkannt (${Math.round(detection.confidence * 100)}%)`;
       } else {
         el.cropStatus.textContent = 'Ecken manuell anpassen';
       }
+
+      console.log('Crop corners set:', cropState.corners);
     } catch (error) {
       console.warn('Edge detection failed:', error);
-      // Default to image corners
+      // Default to centered rectangle with margin
+      const margin = 0.1;
       cropState.corners = [
-        { x: 20, y: 20 },
-        { x: canvas.width - 20, y: 20 },
-        { x: canvas.width - 20, y: canvas.height - 20 },
-        { x: 20, y: canvas.height - 20 }
+        { x: canvas.width * margin, y: canvas.height * margin },
+        { x: canvas.width * (1 - margin), y: canvas.height * margin },
+        { x: canvas.width * (1 - margin), y: canvas.height * (1 - margin) },
+        { x: canvas.width * margin, y: canvas.height * (1 - margin) }
       ];
       el.cropStatus.textContent = 'Ecken manuell anpassen';
     }
