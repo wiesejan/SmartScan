@@ -280,22 +280,64 @@ function startAutoDetection() {
     try {
       // Capture frame at reduced resolution for performance
       const scale = 0.5;
-      detectCanvas.width = video.videoWidth * scale;
-      detectCanvas.height = video.videoHeight * scale;
-      detectCtx.drawImage(video, 0, 0, detectCanvas.width, detectCanvas.height);
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+
+      // Check if we need to account for orientation mismatch
+      const isPortraitDevice = window.innerHeight > window.innerWidth;
+      const isLandscapeVideo = videoWidth > videoHeight;
+      const needsRotation = isPortraitDevice && isLandscapeVideo;
+
+      if (needsRotation) {
+        // Video is landscape but device is portrait - rotate for detection
+        detectCanvas.width = videoHeight * scale;
+        detectCanvas.height = videoWidth * scale;
+        detectCtx.save();
+        detectCtx.translate(detectCanvas.width, 0);
+        detectCtx.rotate(Math.PI / 2);
+        detectCtx.drawImage(video, 0, 0, videoWidth * scale, videoHeight * scale);
+        detectCtx.restore();
+      } else {
+        detectCanvas.width = videoWidth * scale;
+        detectCanvas.height = videoHeight * scale;
+        detectCtx.drawImage(video, 0, 0, detectCanvas.width, detectCanvas.height);
+      }
 
       // Detect document
       const detection = scanner.detectDocument(detectCanvas);
 
       if (detection.confidence > 0.3) {
-        // Scale corners back to video size
-        const corners = detection.corners.map(c => ({
-          x: c.x / scale,
-          y: c.y / scale
-        }));
+        // Scale corners back to display coordinates
+        // Note: Detection was done on the correctly-oriented canvas,
+        // but we need to display on the video element which might show differently
+        let corners;
+        let displayWidth, displayHeight;
+
+        if (needsRotation) {
+          // Detection was done on rotated canvas (portrait orientation)
+          // But video element shows in its native orientation
+          // Transform corners back to video element coordinate space
+          const canvasW = detectCanvas.width;
+          const canvasH = detectCanvas.height;
+
+          corners = detection.corners.map(c => ({
+            // Reverse the 90° clockwise rotation
+            x: (canvasH - c.y) / scale,
+            y: c.x / scale
+          }));
+          displayWidth = videoWidth;
+          displayHeight = videoHeight;
+        } else {
+          corners = detection.corners.map(c => ({
+            x: c.x / scale,
+            y: c.y / scale
+          }));
+          displayWidth = videoWidth;
+          displayHeight = videoHeight;
+        }
 
         // Update guide to show detected area
-        updateCameraGuide(corners, video.videoWidth, video.videoHeight);
+        updateCameraGuide(corners, displayWidth, displayHeight);
 
         // Check stability
         if (isCornersStable(corners)) {

@@ -16,6 +16,7 @@ class CameraController {
     this.stream = null;
     this.facingMode = 'environment'; // 'environment' = back camera, 'user' = front camera
     this.capabilities = null;
+    this.isMirrored = false; // Track if video is mirrored (for front camera)
   }
 
   /**
@@ -63,13 +64,23 @@ class CameraController {
       if (this.videoElement) {
         this.videoElement.srcObject = this.stream;
         await this.videoElement.play();
+
+        // Mirror front camera preview for natural view, but not back camera
+        // For document scanning, we always use back camera which should not be mirrored
+        this.isMirrored = (this.facingMode === 'user');
+        this.videoElement.classList.toggle('mirror', this.isMirrored);
       }
 
       // Get capabilities for zoom, focus, etc.
       const track = this.stream.getVideoTracks()[0];
       if (track.getCapabilities) {
         this.capabilities = track.getCapabilities();
+        console.log('[Camera] Capabilities:', this.capabilities);
       }
+
+      // Log actual settings
+      const settings = track.getSettings();
+      console.log('[Camera] Settings:', settings);
 
     } catch (error) {
       if (error.name === 'NotAllowedError') {
@@ -119,12 +130,38 @@ class CameraController {
     const canvas = this.canvasElement;
     const ctx = canvas.getContext('2d');
 
-    // Set canvas size to video size
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Get video dimensions
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
 
-    // Draw video frame to canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Determine if we need to rotate based on device orientation
+    // On mobile, video might come in landscape even when device is portrait
+    const isPortraitDevice = window.innerHeight > window.innerWidth;
+    const isLandscapeVideo = videoWidth > videoHeight;
+    const needsRotation = isPortraitDevice && isLandscapeVideo;
+
+    console.log(`[Camera] Capture: video=${videoWidth}x${videoHeight}, device portrait=${isPortraitDevice}, needs rotation=${needsRotation}`);
+
+    if (needsRotation) {
+      // Rotate 90 degrees clockwise
+      canvas.width = videoHeight;
+      canvas.height = videoWidth;
+
+      ctx.save();
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+      ctx.restore();
+    } else {
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Handle mirroring for front camera (user facing)
+    // Note: We don't mirror for document scanning as we want the true image
+    // The video preview might be mirrored via CSS for a natural selfie view,
+    // but the captured image should always be un-mirrored for documents
 
     // Get blob and compress if needed
     const blob = await this.compressImage(canvas);

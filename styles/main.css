@@ -371,6 +371,13 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Ensure back camera is not mirrored - important for document scanning */
+  transform: none;
+}
+
+/* Only mirror front camera (user-facing) for natural preview */
+.camera__video.mirror {
+  transform: scaleX(-1);
 }
 
 .camera__canvas {
