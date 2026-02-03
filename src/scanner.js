@@ -616,12 +616,16 @@ class DocumentScanner {
         result.convertTo(result, -1, contrast, brightness);
       }
 
-      // Denoise
-      if (denoise) {
-        const denoised = new cv.Mat();
-        cv.fastNlMeansDenoisingColored(result, denoised, 5, 5, 7, 21);
-        result.delete();
-        result = denoised;
+      // Denoise (if available - not all OpenCV.js builds have this)
+      if (denoise && typeof cv.fastNlMeansDenoisingColored === 'function') {
+        try {
+          const denoised = new cv.Mat();
+          cv.fastNlMeansDenoisingColored(result, denoised, 5, 5, 7, 21);
+          result.delete();
+          result = denoised;
+        } catch (e) {
+          console.warn('Denoising not available:', e.message);
+        }
       }
 
       // Sharpen

@@ -176,65 +176,45 @@ class CameraController {
 
     console.log(`[Camera] Portrait window: ${isPortraitWindow}, Landscape video: ${isLandscapeVideo}, Screen angle: ${screenAngle}`);
 
-    // On iOS, Safari handles orientation internally for display
-    // We need to capture what's actually being shown
-    // The trick is to NOT rotate if iOS Safari is already handling it
+    // iOS Safari displays the video rotated to match device orientation,
+    // but drawImage captures the RAW frame (unrotated).
+    // We must rotate to match what the user sees on screen.
 
     let needsRotation = false;
-    let rotationAngle = 0;
 
     if (this.isIOSDevice) {
-      // iOS Safari: Check if we need to compensate
-      // In portrait mode with back camera, iOS typically gives us correctly oriented video
-      // But we need to verify by checking the aspect ratios
-
-      const videoAspect = videoWidth / videoHeight;
-      const displayAspect = video.clientWidth / video.clientHeight;
-
-      console.log(`[Camera] Video aspect: ${videoAspect.toFixed(2)}, Display aspect: ${displayAspect.toFixed(2)}`);
-
-      // If aspects are inverted (one > 1 and other < 1), rotation happened in display
-      const aspectsInverted = (videoAspect > 1) !== (displayAspect > 1);
-
-      if (aspectsInverted) {
-        needsRotation = true;
-        // Determine rotation direction based on orientation
-        if (screenAngle === 0 || screenAngle === 180) {
-          rotationAngle = Math.PI / 2; // 90 degrees clockwise
-        } else {
-          rotationAngle = -Math.PI / 2; // 90 degrees counter-clockwise
-        }
-        console.log(`[Camera] iOS: Aspects inverted, will rotate ${rotationAngle * 180 / Math.PI}°`);
-      }
-    } else {
-      // Non-iOS: Use the original logic
+      // On iOS in portrait mode with landscape video, we ALWAYS need to rotate
+      // because Safari shows rotated video but drawImage gets raw frame
       if (isPortraitWindow && isLandscapeVideo) {
         needsRotation = true;
-        rotationAngle = Math.PI / 2;
+        console.log(`[Camera] iOS: Portrait device + landscape video -> rotating 90° clockwise`);
+      }
+    } else {
+      // Non-iOS: Same logic
+      if (isPortraitWindow && isLandscapeVideo) {
+        needsRotation = true;
+        console.log(`[Camera] Non-iOS: Portrait device + landscape video -> rotating 90° clockwise`);
       }
     }
 
     // Set canvas size and apply rotation
     if (needsRotation) {
+      // Rotate 90° clockwise to convert landscape to portrait
       canvas.width = videoHeight;
       canvas.height = videoWidth;
 
       ctx.save();
-      if (rotationAngle > 0) {
-        // Rotate 90° clockwise
-        ctx.translate(canvas.width, 0);
-        ctx.rotate(rotationAngle);
-      } else {
-        // Rotate 90° counter-clockwise
-        ctx.translate(0, canvas.height);
-        ctx.rotate(rotationAngle);
-      }
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
       ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
       ctx.restore();
+
+      console.log(`[Camera] Rotated: ${videoWidth}x${videoHeight} -> ${canvas.width}x${canvas.height}`);
     } else {
       canvas.width = videoWidth;
       canvas.height = videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      console.log(`[Camera] No rotation needed`);
     }
 
     console.log(`[Camera] Canvas size: ${canvas.width}x${canvas.height}`);
