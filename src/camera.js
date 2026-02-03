@@ -7,6 +7,14 @@ import { CONFIG } from './config.js';
 import { blobToBase64 } from './utils.js';
 
 /**
+ * Detect if running on iOS
+ */
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/**
  * Camera controller for capturing document images
  */
 class CameraController {
@@ -16,7 +24,8 @@ class CameraController {
     this.stream = null;
     this.facingMode = 'environment'; // 'environment' = back camera, 'user' = front camera
     this.capabilities = null;
-    this.isMirrored = false; // Track if video is mirrored (for front camera)
+    this.isMirrored = false;
+    this.isIOSDevice = isIOS();
   }
 
   /**
@@ -49,11 +58,12 @@ class CameraController {
     // Stop existing stream if any
     this.stop();
 
+    // On iOS, we need to be more specific with constraints
     const constraints = {
       video: {
-        facingMode: this.facingMode,
-        width: { ideal: CONFIG.image.maxWidth },
-        height: { ideal: CONFIG.image.maxHeight }
+        facingMode: { ideal: this.facingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       },
       audio: false
     };
@@ -63,24 +73,34 @@ class CameraController {
 
       if (this.videoElement) {
         this.videoElement.srcObject = this.stream;
+
+        // Wait for video to be ready
+        await new Promise((resolve) => {
+          this.videoElement.onloadedmetadata = () => {
+            resolve();
+          };
+        });
+
         await this.videoElement.play();
 
         // Mirror front camera preview for natural view, but not back camera
-        // For document scanning, we always use back camera which should not be mirrored
         this.isMirrored = (this.facingMode === 'user');
         this.videoElement.classList.toggle('mirror', this.isMirrored);
+
+        console.log(`[Camera] Started: iOS=${this.isIOSDevice}, facingMode=${this.facingMode}`);
+        console.log(`[Camera] Video intrinsic size: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`);
+        console.log(`[Camera] Video display size: ${this.videoElement.clientWidth}x${this.videoElement.clientHeight}`);
       }
 
       // Get capabilities for zoom, focus, etc.
       const track = this.stream.getVideoTracks()[0];
       if (track.getCapabilities) {
         this.capabilities = track.getCapabilities();
-        console.log('[Camera] Capabilities:', this.capabilities);
       }
 
       // Log actual settings
       const settings = track.getSettings();
-      console.log('[Camera] Settings:', settings);
+      console.log('[Camera] Track settings:', settings);
 
     } catch (error) {
       if (error.name === 'NotAllowedError') {
@@ -130,26 +150,85 @@ class CameraController {
     const canvas = this.canvasElement;
     const ctx = canvas.getContext('2d');
 
-    // Get video dimensions
+    // Get video's intrinsic dimensions
     const videoWidth = video.videoWidth;
     const videoHeight = video.videoHeight;
 
-    // Determine if we need to rotate based on device orientation
-    // On mobile, video might come in landscape even when device is portrait
-    const isPortraitDevice = window.innerHeight > window.innerWidth;
+    console.log(`[Camera] Capture started`);
+    console.log(`[Camera] Video intrinsic: ${videoWidth}x${videoHeight}`);
+    console.log(`[Camera] Window: ${window.innerWidth}x${window.innerHeight}`);
+    console.log(`[Camera] Screen orientation: ${screen.orientation?.type || 'unknown'}`);
+
+    // Determine the correct orientation
+    // On iOS Safari, the video element displays correctly but videoWidth/videoHeight
+    // might report the sensor's native orientation
+    const isPortraitWindow = window.innerHeight > window.innerWidth;
     const isLandscapeVideo = videoWidth > videoHeight;
-    const needsRotation = isPortraitDevice && isLandscapeVideo;
 
-    console.log(`[Camera] Capture: video=${videoWidth}x${videoHeight}, device portrait=${isPortraitDevice}, needs rotation=${needsRotation}`);
+    // Check screen orientation API if available
+    let screenAngle = 0;
+    if (screen.orientation) {
+      screenAngle = screen.orientation.angle;
+    } else if (window.orientation !== undefined) {
+      // Fallback for older iOS
+      screenAngle = window.orientation;
+    }
 
+    console.log(`[Camera] Portrait window: ${isPortraitWindow}, Landscape video: ${isLandscapeVideo}, Screen angle: ${screenAngle}`);
+
+    // On iOS, Safari handles orientation internally for display
+    // We need to capture what's actually being shown
+    // The trick is to NOT rotate if iOS Safari is already handling it
+
+    let needsRotation = false;
+    let rotationAngle = 0;
+
+    if (this.isIOSDevice) {
+      // iOS Safari: Check if we need to compensate
+      // In portrait mode with back camera, iOS typically gives us correctly oriented video
+      // But we need to verify by checking the aspect ratios
+
+      const videoAspect = videoWidth / videoHeight;
+      const displayAspect = video.clientWidth / video.clientHeight;
+
+      console.log(`[Camera] Video aspect: ${videoAspect.toFixed(2)}, Display aspect: ${displayAspect.toFixed(2)}`);
+
+      // If aspects are inverted (one > 1 and other < 1), rotation happened in display
+      const aspectsInverted = (videoAspect > 1) !== (displayAspect > 1);
+
+      if (aspectsInverted) {
+        needsRotation = true;
+        // Determine rotation direction based on orientation
+        if (screenAngle === 0 || screenAngle === 180) {
+          rotationAngle = Math.PI / 2; // 90 degrees clockwise
+        } else {
+          rotationAngle = -Math.PI / 2; // 90 degrees counter-clockwise
+        }
+        console.log(`[Camera] iOS: Aspects inverted, will rotate ${rotationAngle * 180 / Math.PI}°`);
+      }
+    } else {
+      // Non-iOS: Use the original logic
+      if (isPortraitWindow && isLandscapeVideo) {
+        needsRotation = true;
+        rotationAngle = Math.PI / 2;
+      }
+    }
+
+    // Set canvas size and apply rotation
     if (needsRotation) {
-      // Rotate 90 degrees clockwise
       canvas.width = videoHeight;
       canvas.height = videoWidth;
 
       ctx.save();
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
+      if (rotationAngle > 0) {
+        // Rotate 90° clockwise
+        ctx.translate(canvas.width, 0);
+        ctx.rotate(rotationAngle);
+      } else {
+        // Rotate 90° counter-clockwise
+        ctx.translate(0, canvas.height);
+        ctx.rotate(rotationAngle);
+      }
       ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
       ctx.restore();
     } else {
@@ -158,10 +237,7 @@ class CameraController {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
-    // Handle mirroring for front camera (user facing)
-    // Note: We don't mirror for document scanning as we want the true image
-    // The video preview might be mirrored via CSS for a natural selfie view,
-    // but the captured image should always be un-mirrored for documents
+    console.log(`[Camera] Canvas size: ${canvas.width}x${canvas.height}`);
 
     // Get blob and compress if needed
     const blob = await this.compressImage(canvas);
