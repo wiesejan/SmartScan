@@ -121,11 +121,23 @@ export function initUI() {
     settingsOverlay: document.getElementById('settings-overlay'),
     settingsClose: document.getElementById('settings-close'),
     dropboxClientId: document.getElementById('settings-dropbox-client-id'),
-    claudeApiKey: document.getElementById('settings-claude-key'),
     btnDropboxConnect: document.getElementById('btn-dropbox-connect'),
     btnDropboxDisconnect: document.getElementById('btn-dropbox-disconnect'),
-    btnClaudeSave: document.getElementById('btn-claude-save'),
+    btnPreloadModels: document.getElementById('btn-preload-models'),
+    modelsStatus: document.getElementById('models-status'),
     btnClearData: document.getElementById('btn-clear-data'),
+
+    // Classification info
+    classificationInfo: document.getElementById('classification-info'),
+    classificationConfidence: document.getElementById('classification-confidence'),
+    classificationBar: document.getElementById('classification-bar'),
+    classificationHint: document.getElementById('classification-hint'),
+    categoryAlternatives: document.getElementById('category-alternatives'),
+    alternativesList: document.getElementById('alternatives-list'),
+
+    // Processing progress
+    processingProgress: document.getElementById('processing-progress'),
+    processingProgressBar: document.getElementById('processing-progress-bar'),
 
     // Toast
     toastContainer: document.getElementById('toast-container')
@@ -152,12 +164,12 @@ export function showScreen(screenName) {
 /**
  * Update the home screen auth status
  * @param {boolean} isDropboxAuth
- * @param {boolean} isClaudeConfigured
+ * @param {boolean} modelsReady - Whether OCR/classifier models are loaded
  */
-export function updateAuthStatus(isDropboxAuth, isClaudeConfigured) {
+export function updateAuthStatus(isDropboxAuth, modelsReady = true) {
   updateState({
     isAuthenticated: isDropboxAuth,
-    isClaudeConfigured
+    isClaudeConfigured: true // No longer needed, always true for local processing
   });
 
   const statusEl = elements.authStatus;
@@ -165,9 +177,6 @@ export function updateAuthStatus(isDropboxAuth, isClaudeConfigured) {
 
   if (!isDropboxAuth) {
     messages.push('Dropbox nicht verbunden');
-  }
-  if (!isClaudeConfigured) {
-    messages.push('Claude API nicht konfiguriert');
   }
 
   if (messages.length === 0) {
@@ -191,6 +200,94 @@ export function updateAuthStatus(isDropboxAuth, isClaudeConfigured) {
 export function updateProcessingStatus(status, substatus = '') {
   elements.processingStatus.textContent = status;
   elements.processingSubstatus.textContent = substatus;
+}
+
+/**
+ * Update processing progress bar
+ * @param {number} percent - Progress 0-100
+ * @param {boolean} show - Whether to show the progress bar
+ */
+export function updateProcessingProgress(percent, show = true) {
+  if (show) {
+    elements.processingProgress.classList.remove('hidden');
+    elements.processingProgressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+  } else {
+    elements.processingProgress.classList.add('hidden');
+  }
+}
+
+/**
+ * Update classification confidence display
+ * @param {number} confidence - Confidence 0-1
+ */
+export function updateClassificationConfidence(confidence) {
+  const percent = Math.round(confidence * 100);
+  elements.classificationConfidence.textContent = `${percent}%`;
+  elements.classificationBar.style.width = `${percent}%`;
+
+  // Update styling based on confidence level
+  const info = elements.classificationInfo;
+  info.classList.remove('classification-info--high', 'classification-info--medium', 'classification-info--low');
+
+  if (confidence >= 0.7) {
+    info.classList.add('classification-info--high');
+    elements.classificationHint.textContent = 'Hohe Sicherheit - Kategorie automatisch erkannt';
+  } else if (confidence >= 0.4) {
+    info.classList.add('classification-info--medium');
+    elements.classificationHint.textContent = 'Bitte Kategorie überprüfen';
+  } else {
+    info.classList.add('classification-info--low');
+    elements.classificationHint.textContent = 'Niedrige Sicherheit - bitte manuell korrigieren';
+  }
+}
+
+/**
+ * Show alternative category suggestions
+ * @param {Array} alternatives - Array of { category, score } objects
+ */
+export function showCategoryAlternatives(alternatives) {
+  if (!alternatives || alternatives.length === 0) {
+    elements.categoryAlternatives.classList.add('hidden');
+    return;
+  }
+
+  elements.categoryAlternatives.classList.remove('hidden');
+  elements.alternativesList.innerHTML = '';
+
+  const categoryLabels = {
+    invoice: 'Rechnung',
+    receipt: 'Beleg',
+    contract: 'Vertrag',
+    letter: 'Brief',
+    tax: 'Steuer',
+    insurance: 'Versicherung',
+    medical: 'Medizinisch',
+    bank: 'Bank',
+    warranty: 'Garantie',
+    other: 'Sonstiges'
+  };
+
+  alternatives.forEach(({ category, score }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'category-alternatives__item';
+    btn.textContent = categoryLabels[category] || category;
+    btn.addEventListener('click', () => {
+      elements.editCategory.value = category;
+      elements.categoryAlternatives.classList.add('hidden');
+    });
+    elements.alternativesList.appendChild(btn);
+  });
+}
+
+/**
+ * Update models status in settings
+ * @param {string} status - Status message
+ */
+export function updateModelsStatus(status) {
+  if (elements.modelsStatus) {
+    elements.modelsStatus.textContent = status;
+  }
 }
 
 /**
@@ -270,15 +367,11 @@ export function closeSettings() {
 
 /**
  * Load settings values into form
- * @param {Object} settings - { dropboxClientId, claudeApiKey }
+ * @param {Object} settings - { dropboxClientId }
  */
 export function loadSettingsForm(settings) {
   if (settings.dropboxClientId) {
     elements.dropboxClientId.value = settings.dropboxClientId;
-  }
-  if (settings.claudeApiKey) {
-    // Show masked value
-    elements.claudeApiKey.value = settings.claudeApiKey;
   }
 }
 
@@ -288,8 +381,7 @@ export function loadSettingsForm(settings) {
  */
 export function getSettingsFormData() {
   return {
-    dropboxClientId: elements.dropboxClientId.value.trim(),
-    claudeApiKey: elements.claudeApiKey.value.trim()
+    dropboxClientId: elements.dropboxClientId.value.trim()
   };
 }
 

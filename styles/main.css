@@ -1037,6 +1037,130 @@ body {
 }
 
 /* ========================================
+   Classification Info
+   ======================================== */
+
+.classification-info {
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.classification-info__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.classification-info__label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.classification-info__value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.classification-info__bar {
+  height: 6px;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--spacing-sm);
+}
+
+.classification-info__progress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-error), var(--color-warning), var(--color-success));
+  border-radius: var(--radius-full);
+  transition: width var(--transition-normal);
+}
+
+.classification-info__hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.classification-info--high .classification-info__value {
+  color: var(--color-success);
+}
+
+.classification-info--medium .classification-info__value {
+  color: var(--color-warning);
+}
+
+.classification-info--low .classification-info__value {
+  color: var(--color-error);
+}
+
+/* ========================================
+   Category Alternatives
+   ======================================== */
+
+.category-alternatives {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.category-alternatives__label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.category-alternatives__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.category-alternatives__item {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.category-alternatives__item:hover {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ========================================
+   Processing Progress Bar
+   ======================================== */
+
+.processing__progress {
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--spacing-md);
+}
+
+.processing__progress-bar {
+  height: 100%;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* ========================================
    Utility Classes
    ======================================== */
 

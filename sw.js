@@ -3,7 +3,7 @@
  * Handles caching and offline functionality
  */
 
-const CACHE_NAME = 'smartscan-v1';
+const CACHE_NAME = 'smartscan-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -13,16 +13,19 @@ const STATIC_ASSETS = [
   '/src/config.js',
   '/src/utils.js',
   '/src/camera.js',
-  '/src/claude-api.js',
   '/src/dropbox-api.js',
   '/src/pdf-converter.js',
   '/src/ui.js',
+  '/src/scanner.js',
+  '/src/ocrService.js',
+  '/src/classifier.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
 ];
 
 const EXTERNAL_ASSETS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
 ];
 
 // Install event - cache static assets
@@ -82,9 +85,31 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip API requests (Dropbox, Claude)
-  if (url.hostname.includes('dropbox') ||
-      url.hostname.includes('anthropic')) {
+  // Skip API requests (Dropbox only now, no cloud AI)
+  if (url.hostname.includes('dropbox')) {
+    return;
+  }
+
+  // Cache Tesseract language data and worker files
+  if (url.hostname.includes('cdn.jsdelivr.net') ||
+      url.hostname.includes('tessdata.projectnaptha.com')) {
+    event.respondWith(
+      caches.match(request)
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return fetch(request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+            return networkResponse;
+          });
+        })
+    );
     return;
   }
 

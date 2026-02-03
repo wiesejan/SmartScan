@@ -6,7 +6,8 @@
 import { CONFIG, getCategoryById } from './config.js';
 import { sanitizeFilename, formatDate } from './utils.js';
 import { dropboxAPI } from './dropbox-api.js';
-import { claudeAPI } from './claude-api.js';
+import { ocrService } from './ocrService.js';
+import { classifier } from './classifier.js';
 import { camera } from './camera.js';
 import { pdfConverter } from './pdf-converter.js';
 import { scanner } from './scanner.js';
@@ -15,6 +16,10 @@ import {
   showScreen,
   updateAuthStatus,
   updateProcessingStatus,
+  updateProcessingProgress,
+  updateClassificationConfidence,
+  showCategoryAlternatives,
+  updateModelsStatus,
   setCurrentImage,
   setMetadata,
   getFormData,
@@ -65,7 +70,9 @@ async function init() {
 async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      // Use relative path to work with GitHub Pages subpath
+      const swPath = new URL('sw.js', window.location.href).pathname;
+      const registration = await navigator.serviceWorker.register(swPath);
       console.log('Service Worker registered:', registration.scope);
 
       // Check for updates
@@ -95,9 +102,6 @@ async function initializeAPIs() {
     showToast(error.message, 'error');
   }
 
-  // Initialize Claude
-  claudeAPI.init();
-
   // Initialize PDF converter
   try {
     await pdfConverter.init();
@@ -105,14 +109,19 @@ async function initializeAPIs() {
     console.warn('PDF converter init warning:', error);
   }
 
-  // Update UI with auth status
-  updateAuthStatus(dropboxAPI.isAuthenticated(), claudeAPI.isConfigured());
+  // Update UI with auth status (no Claude needed anymore)
+  updateAuthStatus(dropboxAPI.isAuthenticated());
 
   // Load saved settings into form
   loadSettingsForm({
-    dropboxClientId: dropboxAPI.getClientId() || '',
-    claudeApiKey: claudeAPI.isConfigured() ? '••••••••••••••••' : ''
+    dropboxClientId: dropboxAPI.getClientId() || ''
   });
+
+  // Check if models were preloaded
+  const modelsLoaded = localStorage.getItem(CONFIG.storage.modelsLoaded);
+  if (modelsLoaded) {
+    updateModelsStatus('Modelle bereit (gecached)');
+  }
 }
 
 /**
@@ -167,7 +176,7 @@ function bindEvents() {
   // Save settings on input change and blur
   el.dropboxClientId.addEventListener('change', saveSettings);
   el.dropboxClientId.addEventListener('blur', saveSettings);
-  el.btnClaudeSave.addEventListener('click', saveClaudeKey);
+  el.btnPreloadModels.addEventListener('click', preloadModels);
 
   // Logo click returns home
   document.getElementById('logo').addEventListener('click', (e) => {
@@ -211,13 +220,7 @@ let detectionState = {
  * Start scanning workflow
  */
 async function startScan() {
-  // Check prerequisites
-  if (!claudeAPI.isConfigured()) {
-    showToast('Bitte Claude API Key in den Einstellungen konfigurieren', 'warning');
-    openSettings();
-    return;
-  }
-
+  // Check prerequisites - only Dropbox needed now
   if (!dropboxAPI.isAuthenticated()) {
     showToast('Bitte mit Dropbox verbinden', 'warning');
     openSettings();
@@ -659,36 +662,88 @@ async function applyCropAndContinue() {
 }
 
 /**
- * Process captured image with AI analysis
+ * Process captured image with local OCR and classification
  * @param {Object} imageData - { blob, base64, dataUrl }
  */
 async function processImage(imageData) {
   setCurrentImage(imageData);
   showScreen('processing');
-  updateProcessingStatus('Dokument wird analysiert...', 'KI erkennt Dokumentdetails');
+  updateProcessingProgress(0, true);
+  updateProcessingStatus('OCR wird initialisiert...', 'Texterkennung wird vorbereitet');
 
   try {
-    // Analyze with Claude
-    const metadata = await claudeAPI.analyzeDocument(
-      imageData.base64,
-      'image/jpeg'
-    );
+    // Initialize OCR with progress callback
+    await ocrService.init((percent, status) => {
+      updateProcessingProgress(percent * 0.5, true); // OCR is 0-50%
+      updateProcessingStatus('OCR wird geladen...', status);
+    });
 
-    console.log('Analysis result:', metadata);
+    updateProcessingProgress(50, true);
+    updateProcessingStatus('Text wird erkannt...', 'Dokument wird gelesen');
+
+    // Create an image element from dataUrl for OCR
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = imageData.dataUrl;
+    });
+
+    // Perform OCR
+    const ocrResult = await ocrService.recognize(img);
+    console.log('OCR result:', ocrResult.text.slice(0, 200) + '...');
+
+    // Extract structured data
+    ocrResult.structuredData = ocrService.extractStructuredData(ocrResult.text);
+    console.log('Structured data:', ocrResult.structuredData);
+
+    updateProcessingProgress(70, true);
+    updateProcessingStatus('Dokument wird klassifiziert...', 'Kategorie wird ermittelt');
+
+    // Initialize classifier
+    await classifier.init({
+      useML: CONFIG.classifier.useML,
+      onProgress: (percent, status) => {
+        updateProcessingProgress(70 + percent * 0.25, true);
+        updateProcessingStatus('Klassifizierer wird geladen...', status);
+      }
+    });
+
+    // Classify document
+    const classification = await classifier.classify(ocrResult);
+    console.log('Classification result:', classification);
+
+    updateProcessingProgress(100, true);
+
+    // Build metadata from classification
+    const metadata = {
+      category: classification.category,
+      date: classification.date || formatDate(new Date()),
+      name: classification.name || 'Dokument',
+      sender: classification.sender,
+      amount: classification.amount,
+      confidence: classification.confidence
+    };
+
+    console.log('Final metadata:', metadata);
     setMetadata(metadata);
 
+    // Update classification confidence UI
+    updateClassificationConfidence(classification.confidence);
+
+    // Show alternatives if confidence is low
+    if (classification.confidence < CONFIG.classifier.showReviewIfBelow) {
+      const alternatives = classifier.getAlternatives(classification);
+      showCategoryAlternatives(alternatives);
+    }
+
     // Show edit screen
+    updateProcessingProgress(0, false);
     showScreen('edit');
 
   } catch (error) {
     console.error('Analysis error:', error);
-
-    if (error.message.includes('API Key')) {
-      showToast('Claude API Key ungültig oder nicht konfiguriert', 'error');
-      openSettings();
-    } else {
-      showToast('Analyse fehlgeschlagen: ' + error.message, 'error');
-    }
+    showToast('Analyse fehlgeschlagen: ' + error.message, 'error');
 
     // Still allow manual entry
     setMetadata({
@@ -697,6 +752,8 @@ async function processImage(imageData) {
       name: 'Dokument',
       confidence: 0
     });
+    updateClassificationConfidence(0);
+    updateProcessingProgress(0, false);
     showScreen('edit');
   }
 }
@@ -802,38 +859,46 @@ function saveSettings() {
 }
 
 /**
- * Save Claude API key with feedback
+ * Preload OCR and classifier models
  */
-function saveClaudeKey() {
-  const settings = getSettingsFormData();
-  const key = settings.claudeApiKey;
-
-  // Don't save if it's the masked placeholder or empty
-  if (!key || key.startsWith('••')) {
-    showToast('Bitte API Key eingeben', 'warning');
-    return;
-  }
-
-  // Validate key format (sk-ant- or sk-)
-  if (!key.startsWith('sk-')) {
-    showToast('Ungültiges API Key Format. Muss mit "sk-" beginnen.', 'warning');
-    return;
-  }
-
-  claudeAPI.setApiKey(key);
-  updateAuthStatus(dropboxAPI.isAuthenticated(), claudeAPI.isConfigured());
-  showToast('Claude API Key gespeichert', 'success');
-
-  // Show masked value
+async function preloadModels() {
   const el = getElements();
-  el.claudeApiKey.value = '••••••••••••••••';
+  el.btnPreloadModels.disabled = true;
+  updateModelsStatus('Modelle werden geladen...');
+
+  try {
+    // Initialize OCR
+    await ocrService.init((percent, status) => {
+      updateModelsStatus(`OCR: ${status} (${Math.round(percent)}%)`);
+    });
+
+    // Initialize classifier
+    await classifier.init({
+      useML: CONFIG.classifier.useML,
+      onProgress: (percent, status) => {
+        updateModelsStatus(`Klassifizierer: ${status} (${Math.round(percent)}%)`);
+      }
+    });
+
+    // Mark as loaded
+    localStorage.setItem(CONFIG.storage.modelsLoaded, 'true');
+    updateModelsStatus('Modelle bereit (gecached)');
+    showToast('Modelle erfolgreich geladen', 'success');
+
+  } catch (error) {
+    console.error('Model preload error:', error);
+    updateModelsStatus('Fehler beim Laden: ' + error.message);
+    showToast('Modelle konnten nicht geladen werden', 'error');
+  } finally {
+    el.btnPreloadModels.disabled = false;
+  }
 }
 
 /**
  * Clear all stored data
  */
 function clearAllData() {
-  if (!confirm('Alle gespeicherten Daten (API-Keys, Token, Einstellungen) löschen?')) {
+  if (!confirm('Alle gespeicherten Daten (Token, Einstellungen, gecachte Modelle) löschen?')) {
     return;
   }
 
@@ -843,18 +908,32 @@ function clearAllData() {
 
   // Clear API clients
   dropboxAPI.clearTokens();
-  claudeAPI.clearApiKey();
 
-  // Clear cache
+  // Terminate OCR worker if running
+  ocrService.terminate().catch(() => {});
+
+  // Clear cache (including model cache)
   if ('caches' in window) {
     caches.keys().then(names => {
       names.forEach(name => caches.delete(name));
     });
   }
 
+  // Clear IndexedDB (Tesseract cache)
+  if ('indexedDB' in window) {
+    indexedDB.databases().then(dbs => {
+      dbs.forEach(db => {
+        if (db.name && db.name.includes('tesseract')) {
+          indexedDB.deleteDatabase(db.name);
+        }
+      });
+    }).catch(() => {});
+  }
+
   // Reset UI
-  updateAuthStatus(false, false);
-  loadSettingsForm({ dropboxClientId: '', claudeApiKey: '' });
+  updateAuthStatus(false);
+  updateModelsStatus('Modelle werden bei Bedarf geladen');
+  loadSettingsForm({ dropboxClientId: '' });
   closeSettings();
 
   showToast('Alle Daten gelöscht', 'success');

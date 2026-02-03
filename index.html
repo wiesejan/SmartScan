@@ -66,7 +66,7 @@
                 <path d="M12 2a10 10 0 0 1 10 10"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
-              <span class="home__feature-text">KI erkennt automatisch Dokumenttyp, Datum und Namen</span>
+              <span class="home__feature-text">Lokale KI erkennt Dokumenttyp, Datum und Namen - ohne Cloud</span>
             </div>
             <div class="home__feature">
               <svg class="home__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -173,6 +173,9 @@
         <div class="processing__spinner" role="status" aria-label="Wird verarbeitet"></div>
         <p class="processing__status" id="processing-status">Dokument wird analysiert...</p>
         <p class="processing__substatus" id="processing-substatus">KI erkennt Dokumentdetails</p>
+        <div class="processing__progress hidden" id="processing-progress">
+          <div class="processing__progress-bar" id="processing-progress-bar" style="width: 0%"></div>
+        </div>
       </section>
 
       <!-- Edit Screen -->
@@ -182,6 +185,18 @@
         </div>
 
         <form class="edit__form" id="edit-form">
+          <!-- Classification confidence indicator -->
+          <div class="classification-info" id="classification-info">
+            <div class="classification-info__header">
+              <span class="classification-info__label">Erkennungssicherheit</span>
+              <span class="classification-info__value" id="classification-confidence">--</span>
+            </div>
+            <div class="classification-info__bar">
+              <div class="classification-info__progress" id="classification-bar" style="width: 0%"></div>
+            </div>
+            <p class="classification-info__hint" id="classification-hint">Bitte Kategorie überprüfen</p>
+          </div>
+
           <div class="form-group">
             <label class="form-label" for="edit-category">Kategorie</label>
             <select class="form-select" id="edit-category" required>
@@ -197,6 +212,10 @@
               <option value="warranty">Garantie</option>
               <option value="other">Sonstiges</option>
             </select>
+            <div class="category-alternatives hidden" id="category-alternatives">
+              <span class="category-alternatives__label">Alternativen:</span>
+              <div class="category-alternatives__list" id="alternatives-list"></div>
+            </div>
           </div>
 
           <div class="form-group">
@@ -309,14 +328,10 @@
         </div>
 
         <div class="settings-section">
-          <h3 class="settings-section__title">Claude API</h3>
-          <div class="form-group">
-            <label class="form-label" for="settings-claude-key">API Key</label>
-            <input type="password" class="form-input" id="settings-claude-key" placeholder="sk-ant-...">
-            <p class="form-hint">API Key von <a href="https://console.anthropic.com/" target="_blank" rel="noopener">Anthropic Console</a></p>
-          </div>
-          <button type="button" class="btn btn--primary" id="btn-claude-save">
-            Speichern
+          <h3 class="settings-section__title">KI-Modelle</h3>
+          <p class="form-hint" id="models-status">OCR und Klassifizierer werden bei Bedarf geladen</p>
+          <button type="button" class="btn btn--secondary" id="btn-preload-models">
+            Modelle vorladen
           </button>
         </div>
 
@@ -330,8 +345,8 @@
 
         <div class="settings-section" style="margin-top: auto; padding-top: var(--spacing-lg); border-top: 1px solid var(--border-color);">
           <p class="text-muted" style="font-size: 0.75rem;">
-            SmartScan v1.0.0<br>
-            Made with Claude AI
+            SmartScan v2.0.0<br>
+            100% Open Source - Offline-fähig
           </p>
         </div>
       </div>

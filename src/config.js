@@ -7,8 +7,8 @@ export const CONFIG = {
   // App metadata
   app: {
     name: 'SmartScan',
-    version: '1.0.0',
-    description: 'Document digitization with AI categorization'
+    version: '2.0.0',
+    description: 'Document digitization with local AI - 100% offline capable'
   },
 
   // Document categories for classification
@@ -36,13 +36,17 @@ export const CONFIG = {
     baseFolder: '/SmartScan' // Root folder for all uploads
   },
 
-  // Claude API configuration
-  claude: {
-    apiEndpoint: 'https://api.anthropic.com/v1/messages',
-    model: 'claude-sonnet-4-20250514',
-    maxTokens: 1024,
-    retryAttempts: 3,
-    retryDelay: 1000 // ms, will be multiplied for exponential backoff
+  // OCR configuration (Tesseract.js)
+  ocr: {
+    language: 'deu', // German
+    cacheMethod: 'indexedDB'
+  },
+
+  // Classifier configuration
+  classifier: {
+    useML: false, // Set to true for ML-enhanced classification (larger download)
+    minConfidence: 0.3, // Minimum confidence for auto-classification
+    showReviewIfBelow: 0.6 // Show review UI if confidence below this
   },
 
   // Image processing settings
@@ -66,9 +70,9 @@ export const CONFIG = {
     dropboxToken: 'smartscan_dropbox_token',
     dropboxRefreshToken: 'smartscan_dropbox_refresh',
     codeVerifier: 'smartscan_code_verifier',
-    claudeApiKey: 'smartscan_claude_key',
     dropboxClientId: 'smartscan_dropbox_client_id',
-    settings: 'smartscan_settings'
+    settings: 'smartscan_settings',
+    modelsLoaded: 'smartscan_models_loaded'
   }
 };
 
