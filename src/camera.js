@@ -197,15 +197,27 @@ class CameraController {
       }
     }
 
-    // Set canvas size and apply rotation
+    // Set canvas size and apply transformations
     if (needsRotation) {
       // Rotate 90° clockwise to convert landscape to portrait
       canvas.width = videoHeight;
       canvas.height = videoWidth;
 
       ctx.save();
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
+
+      // On iOS, the back camera image is mirrored - we need to flip it
+      if (this.isIOSDevice && this.facingMode === 'environment') {
+        // Flip horizontally AND rotate
+        ctx.translate(canvas.width, canvas.height);
+        ctx.scale(-1, -1);
+        ctx.translate(0, -canvas.width);
+        ctx.rotate(Math.PI / 2);
+        console.log(`[Camera] iOS back camera: Rotating + flipping to correct mirror`);
+      } else {
+        ctx.translate(canvas.width, 0);
+        ctx.rotate(Math.PI / 2);
+      }
+
       ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
       ctx.restore();
 
@@ -213,8 +225,19 @@ class CameraController {
     } else {
       canvas.width = videoWidth;
       canvas.height = videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      console.log(`[Camera] No rotation needed`);
+
+      // On iOS back camera without rotation, still check for mirroring
+      if (this.isIOSDevice && this.facingMode === 'environment') {
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        console.log(`[Camera] iOS back camera: Flipping horizontally to correct mirror`);
+      } else {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        console.log(`[Camera] No transformation needed`);
+      }
     }
 
     console.log(`[Camera] Canvas size: ${canvas.width}x${canvas.height}`);
