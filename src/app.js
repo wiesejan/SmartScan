@@ -692,8 +692,19 @@ async function applyCropAndContinue() {
       y: c.y * scaleY
     }));
 
-    // Apply perspective transform
-    let resultCanvas = scanner.perspectiveTransform(cropState.originalImage, originalCorners);
+    // Convert Image element to Canvas first to avoid iOS Safari issues
+    // where OpenCV might read the image incorrectly
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = cropState.originalImage.width;
+    sourceCanvas.height = cropState.originalImage.height;
+    const sourceCtx = sourceCanvas.getContext('2d');
+    sourceCtx.drawImage(cropState.originalImage, 0, 0);
+
+    console.log(`[Crop] Source canvas: ${sourceCanvas.width}x${sourceCanvas.height}`);
+    console.log(`[Crop] Corners:`, originalCorners);
+
+    // Apply perspective transform using canvas instead of Image element
+    let resultCanvas = scanner.perspectiveTransform(sourceCanvas, originalCorners);
 
     // Always apply auto enhancement
     try {
