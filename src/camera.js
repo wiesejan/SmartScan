@@ -155,70 +155,96 @@ class CameraController {
     const videoHeight = video.videoHeight;
 
     console.log(`[Camera] Capture started`);
+    console.log(`[Camera] iOS: ${this.isIOSDevice}, facingMode: ${this.facingMode}`);
     console.log(`[Camera] Video intrinsic: ${videoWidth}x${videoHeight}`);
     console.log(`[Camera] Window: ${window.innerWidth}x${window.innerHeight}`);
     console.log(`[Camera] Screen orientation: ${screen.orientation?.type || 'unknown'}`);
 
-    // Determine the correct orientation
-    // On iOS Safari, the video element displays correctly but videoWidth/videoHeight
-    // might report the sensor's native orientation
     const isPortraitWindow = window.innerHeight > window.innerWidth;
     const isLandscapeVideo = videoWidth > videoHeight;
 
-    // Check screen orientation API if available
-    let screenAngle = 0;
-    if (screen.orientation) {
-      screenAngle = screen.orientation.angle;
-    } else if (window.orientation !== undefined) {
-      // Fallback for older iOS
-      screenAngle = window.orientation;
-    }
+    console.log(`[Camera] Portrait window: ${isPortraitWindow}, Landscape video: ${isLandscapeVideo}`);
 
-    console.log(`[Camera] Portrait window: ${isPortraitWindow}, Landscape video: ${isLandscapeVideo}, Screen angle: ${screenAngle}`);
+    // iOS Safari specific handling for back camera
+    // The video element displays correctly, but drawImage() returns the RAW sensor frame
+    // which is rotated and possibly needs flipping
+    if (this.isIOSDevice && this.facingMode === 'environment' && isPortraitWindow) {
+      console.log(`[Camera] iOS back camera in portrait mode - applying special transformation`);
 
-    // iOS Safari displays the video rotated to match device orientation,
-    // but drawImage captures the RAW frame (unrotated).
-    // We must rotate to match what the user sees on screen.
+      // iOS back camera raw frame in portrait mode:
+      // - The sensor captures in landscape orientation
+      // - We need to rotate 90° counter-clockwise (or 270° clockwise)
+      // - Then flip horizontally to correct the mirror effect
 
-    let needsRotation = false;
-
-    if (this.isIOSDevice) {
-      // On iOS in portrait mode with landscape video, we ALWAYS need to rotate
-      // because Safari shows rotated video but drawImage gets raw frame
-      if (isPortraitWindow && isLandscapeVideo) {
-        needsRotation = true;
-        console.log(`[Camera] iOS: Portrait device + landscape video -> rotating 90° clockwise`);
+      // Set canvas to portrait dimensions
+      if (isLandscapeVideo) {
+        canvas.width = videoHeight;
+        canvas.height = videoWidth;
+      } else {
+        // iOS might report already-rotated dimensions, but raw frame is still landscape
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
       }
-    } else {
-      // Non-iOS: Same logic
-      if (isPortraitWindow && isLandscapeVideo) {
-        needsRotation = true;
-        console.log(`[Camera] Non-iOS: Portrait device + landscape video -> rotating 90° clockwise`);
-      }
-    }
-
-    // Set canvas size and apply transformations
-    if (needsRotation) {
-      // Rotate 90° clockwise to convert landscape to portrait
-      canvas.width = videoHeight;
-      canvas.height = videoWidth;
 
       ctx.save();
-      // Standard 90° clockwise rotation
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
-      ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
-      ctx.restore();
 
-      console.log(`[Camera] Rotated 90° CW: ${videoWidth}x${videoHeight} -> ${canvas.width}x${canvas.height}`);
-    } else {
+      // Transform: rotate 90° CCW and flip horizontally
+      // This is equivalent to: flip horizontal, then rotate 90° CW
+      // Matrix: translate to center, rotate -90°, flip X
+
+      if (isLandscapeVideo) {
+        // Raw frame is landscape, need to rotate to portrait
+        // Rotate 90° counter-clockwise
+        ctx.translate(0, canvas.height);
+        ctx.rotate(-Math.PI / 2);
+        // Flip horizontally to correct mirror
+        ctx.scale(-1, 1);
+        ctx.translate(-videoWidth, 0);
+        ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+      } else {
+        // Video reports portrait dimensions but might still need flip
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+
+      ctx.restore();
+      console.log(`[Camera] iOS transform applied: ${canvas.width}x${canvas.height}`);
+    }
+    // iOS front camera (selfie) - usually works correctly, just mirror for natural view
+    else if (this.isIOSDevice && this.facingMode === 'user') {
       canvas.width = videoWidth;
       canvas.height = videoHeight;
+      // Front camera preview is mirrored, capture should also be mirrored for consistency
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.translate(-canvas.width, 0);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      console.log(`[Camera] No transformation needed`);
+      ctx.restore();
+      console.log(`[Camera] iOS front camera - mirrored`);
+    }
+    // Non-iOS or landscape mode - standard handling
+    else {
+      const needsRotation = isPortraitWindow && isLandscapeVideo;
+
+      if (needsRotation) {
+        canvas.width = videoHeight;
+        canvas.height = videoWidth;
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+        ctx.restore();
+        console.log(`[Camera] Standard rotation applied: ${canvas.width}x${canvas.height}`);
+      } else {
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        console.log(`[Camera] No transformation needed`);
+      }
     }
 
-    console.log(`[Camera] Canvas size: ${canvas.width}x${canvas.height}`);
+    console.log(`[Camera] Final canvas size: ${canvas.width}x${canvas.height}`);
 
     // Get blob and compress if needed
     const blob = await this.compressImage(canvas);
