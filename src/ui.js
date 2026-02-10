@@ -120,8 +120,12 @@ export function initUI() {
     editForm: document.getElementById('edit-form'),
     editCategory: document.getElementById('edit-category'),
     editDate: document.getElementById('edit-date'),
+    editSender: document.getElementById('edit-sender'),
     editName: document.getElementById('edit-name'),
+    editAmount: document.getElementById('edit-amount'),
+    editAmountGroup: document.getElementById('edit-amount-group'),
     editNotes: document.getElementById('edit-notes'),
+    filenamePreview: document.getElementById('filename-preview'),
     btnEditBack: document.getElementById('btn-edit-back'),
     btnSave: document.getElementById('btn-save'),
 
@@ -334,8 +338,13 @@ export function setMetadata(metadata) {
     // Populate form
     elements.editCategory.value = metadata.category || '';
     elements.editDate.value = metadata.date || new Date().toISOString().split('T')[0];
+    elements.editSender.value = metadata.sender || '';
     elements.editName.value = metadata.name || '';
+    elements.editAmount.value = metadata.amount || '';
     elements.editNotes.value = '';
+
+    // Update filename preview
+    updateFilenamePreview();
   }
 }
 
@@ -347,9 +356,64 @@ export function getFormData() {
   return {
     category: elements.editCategory.value,
     date: elements.editDate.value,
+    sender: elements.editSender.value.trim(),
     name: elements.editName.value,
+    amount: elements.editAmount.value.trim(),
     notes: elements.editNotes.value
   };
+}
+
+/**
+ * Update filename preview based on current form values
+ */
+export function updateFilenamePreview() {
+  const category = elements.editCategory.value;
+  const date = elements.editDate.value;
+  const sender = elements.editSender.value.trim();
+  const name = elements.editName.value.trim();
+  const amount = elements.editAmount.value.trim();
+
+  if (!date || !category) {
+    elements.filenamePreview.textContent = '--';
+    return;
+  }
+
+  // Format date as YYYYMMDD
+  const dateFormatted = date.replace(/-/g, '');
+
+  // Get category label
+  const categoryLabels = {
+    invoice: 'Rechnung',
+    receipt: 'Beleg',
+    contract: 'Vertrag',
+    letter: 'Brief',
+    tax: 'Steuer',
+    insurance: 'Versicherung',
+    medical: 'Medizinisch',
+    bank: 'Bank',
+    warranty: 'Garantie',
+    other: 'Sonstiges'
+  };
+  const categoryLabel = categoryLabels[category] || category;
+
+  // Build filename parts
+  let parts = [dateFormatted, categoryLabel];
+
+  if (sender) {
+    parts.push(sender);
+  }
+
+  if (name) {
+    parts.push(name);
+  }
+
+  // Add amount for invoices/receipts
+  if (amount && (category === 'invoice' || category === 'receipt')) {
+    parts.push(amount.replace(/[€\s]/g, '') + 'EUR');
+  }
+
+  const filename = parts.join('_').replace(/[<>:"/\\|?*]/g, '-') + '.pdf';
+  elements.filenamePreview.textContent = filename;
 }
 
 /**

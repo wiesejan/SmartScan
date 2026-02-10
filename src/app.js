@@ -38,6 +38,7 @@ import {
   updateMultipageUI,
   updateEditPreviewMultipage,
   showSuccessMultipage,
+  updateFilenamePreview,
   state
 } from './ui.js';
 
@@ -178,6 +179,13 @@ function bindEvents() {
     showScreen('home');
   });
   el.editForm.addEventListener('submit', handleSave);
+
+  // Update filename preview when form fields change
+  el.editCategory.addEventListener('change', updateFilenamePreview);
+  el.editDate.addEventListener('change', updateFilenamePreview);
+  el.editSender.addEventListener('input', updateFilenamePreview);
+  el.editName.addEventListener('input', updateFilenamePreview);
+  el.editAmount.addEventListener('input', updateFilenamePreview);
 
   // Success screen
   el.btnScanAnother.addEventListener('click', () => startScan(false));
@@ -1082,10 +1090,30 @@ async function handleSave(e) {
   updateProcessingStatus('PDF wird erstellt...', 'Dokument wird konvertiert');
 
   try {
-    // Generate filename
+    // Generate filename with new convention: YYYYMMDD_Dokumenttyp_Korrespondent_Beschreibung_Attribute.pdf
     const category = getCategoryById(formData.category);
-    const sanitizedName = sanitizeFilename(formData.name);
-    const filename = `${formData.date}_${sanitizedName}.pdf`;
+
+    // Format date as YYYYMMDD
+    const dateFormatted = formData.date.replace(/-/g, '');
+
+    // Build filename parts
+    let filenameParts = [dateFormatted, category.label];
+
+    if (formData.sender) {
+      filenameParts.push(sanitizeFilename(formData.sender));
+    }
+
+    if (formData.name) {
+      filenameParts.push(sanitizeFilename(formData.name));
+    }
+
+    // Add amount for invoices/receipts
+    if (formData.amount && (formData.category === 'invoice' || formData.category === 'receipt')) {
+      const cleanAmount = formData.amount.replace(/[€\s]/g, '').replace(',', '-');
+      filenameParts.push(cleanAmount + 'EUR');
+    }
+
+    const filename = filenameParts.join('_') + '.pdf';
     const folder = `${CONFIG.dropbox.baseFolder}/${category.folder}`;
     const path = `${folder}/${filename}`;
 

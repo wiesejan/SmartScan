@@ -660,17 +660,30 @@ body {
 
 .edit__preview {
   width: 100%;
-  max-width: 300px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0 auto var(--spacing-lg);
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  background: var(--bg-secondary);
 }
 
 .edit__preview-img {
   width: 100%;
-  height: auto;
+  max-height: 40vh;
+  object-fit: contain;
   display: block;
+  margin: 0 auto;
+}
+
+.filename-preview {
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: var(--spacing-sm);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+  color: var(--text-primary);
 }
 
 .edit__form {

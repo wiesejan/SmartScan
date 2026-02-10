@@ -277,19 +277,34 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="edit-date">Datum</label>
+            <label class="form-label" for="edit-date">Dokumentdatum</label>
             <input type="date" class="form-input" id="edit-date" required>
+            <p class="form-hint">Datum aus dem Dokument (z.B. Rechnungsdatum)</p>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="edit-name">Dokumentname</label>
-            <input type="text" class="form-input" id="edit-name" placeholder="z.B. Stromrechnung Januar" required>
-            <p class="form-hint">Der Dateiname wird automatisch generiert</p>
+            <label class="form-label" for="edit-sender">Absender/Korrespondent</label>
+            <input type="text" class="form-input" id="edit-sender" placeholder="z.B. Telekom, Finanzamt, IKEA">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="edit-name">Beschreibung</label>
+            <input type="text" class="form-input" id="edit-name" placeholder="z.B. Mobilfunkrechnung März" required>
+          </div>
+
+          <div class="form-group" id="edit-amount-group">
+            <label class="form-label" for="edit-amount">Betrag (optional)</label>
+            <input type="text" class="form-input" id="edit-amount" placeholder="z.B. 49,99">
           </div>
 
           <div class="form-group">
             <label class="form-label" for="edit-notes">Notizen (optional)</label>
             <textarea class="form-textarea" id="edit-notes" placeholder="Zusätzliche Informationen..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Vorschau Dateiname</label>
+            <p class="form-hint filename-preview" id="filename-preview">--</p>
           </div>
 
           <div class="edit__actions">
