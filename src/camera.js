@@ -194,17 +194,12 @@ class CameraController {
 
       if (isLandscapeVideo) {
         // Raw frame is landscape, need to rotate to portrait
-        // Rotate 90° counter-clockwise
+        // Rotate 90° counter-clockwise only (no flip)
         ctx.translate(0, canvas.height);
         ctx.rotate(-Math.PI / 2);
-        // Flip horizontally to correct mirror
-        ctx.scale(-1, 1);
-        ctx.translate(-videoWidth, 0);
         ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
       } else {
-        // Video reports portrait dimensions but might still need flip
-        ctx.scale(-1, 1);
-        ctx.translate(-canvas.width, 0);
+        // Video reports portrait dimensions - draw directly
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
 
