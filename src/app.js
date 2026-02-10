@@ -1134,10 +1134,19 @@ async function handleSave(e) {
     } else {
       // Single page PDF
       updateProcessingStatus('PDF wird erstellt...', 'Konvertierung läuft');
+
+      // Check if currentImage exists
+      console.log('[Save] state.currentImage:', state.currentImage ? 'exists' : 'null');
+      if (!state.currentImage || !state.currentImage.dataUrl) {
+        throw new Error('Kein Bild zum Speichern vorhanden');
+      }
+
+      console.log('[Save] Converting to PDF, dataUrl length:', state.currentImage.dataUrl.length);
       pdfBlob = await pdfConverter.convert(state.currentImage.dataUrl, {
         name: formData.name,
         category: formData.category
       });
+      console.log('[Save] PDF created, size:', pdfBlob?.size);
     }
 
     // Upload to Dropbox
@@ -1164,7 +1173,10 @@ async function handleSave(e) {
 
   } catch (error) {
     console.error('Save error:', error);
-    showToast('Speichern fehlgeschlagen: ' + error.message, 'error');
+    console.error('Error stack:', error.stack);
+    console.error('State currentImage:', state.currentImage);
+    console.error('Form data:', formData);
+    showToast('Speichern fehlgeschlagen: ' + (error.message || String(error)), 'error');
     showScreen('edit');
   } finally {
     setSaveButtonEnabled(true);
