@@ -1091,13 +1091,13 @@ async function handleSave(e) {
 
   try {
     // Generate filename with new convention: YYYYMMDD_Dokumenttyp_Korrespondent_Beschreibung_Attribute.pdf
-    const category = getCategoryById(formData.category);
+    const category = getCategoryById(formData.category) || { id: 'other', label: 'Sonstiges', folder: 'Sonstiges' };
 
     // Format date as YYYYMMDD
-    const dateFormatted = formData.date.replace(/-/g, '');
+    const dateFormatted = (formData.date || new Date().toISOString().split('T')[0]).replace(/-/g, '');
 
     // Build filename parts
-    let filenameParts = [dateFormatted, category.label];
+    let filenameParts = [dateFormatted, category.label || 'Dokument'];
 
     if (formData.sender) {
       filenameParts.push(sanitizeFilename(formData.sender));

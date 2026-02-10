@@ -354,12 +354,12 @@ export function setMetadata(metadata) {
  */
 export function getFormData() {
   return {
-    category: elements.editCategory.value,
-    date: elements.editDate.value,
-    sender: elements.editSender.value.trim(),
-    name: elements.editName.value,
-    amount: elements.editAmount.value.trim(),
-    notes: elements.editNotes.value
+    category: elements.editCategory?.value || '',
+    date: elements.editDate?.value || '',
+    sender: elements.editSender?.value?.trim() || '',
+    name: elements.editName?.value || '',
+    amount: elements.editAmount?.value?.trim() || '',
+    notes: elements.editNotes?.value || ''
   };
 }
 
@@ -367,14 +367,18 @@ export function getFormData() {
  * Update filename preview based on current form values
  */
 export function updateFilenamePreview() {
-  const category = elements.editCategory.value;
-  const date = elements.editDate.value;
-  const sender = elements.editSender.value.trim();
-  const name = elements.editName.value.trim();
-  const amount = elements.editAmount.value.trim();
+  if (!elements.editCategory || !elements.filenamePreview) return;
+
+  const category = elements.editCategory.value || '';
+  const date = elements.editDate?.value || '';
+  const sender = elements.editSender?.value?.trim() || '';
+  const name = elements.editName?.value?.trim() || '';
+  const amount = elements.editAmount?.value?.trim() || '';
 
   if (!date || !category) {
-    elements.filenamePreview.textContent = '--';
+    if (elements.filenamePreview) {
+      elements.filenamePreview.textContent = '--';
+    }
     return;
   }
 
