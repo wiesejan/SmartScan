@@ -671,6 +671,39 @@ function initCropHandles() {
 }
 
 /**
+ * Apply simple image enhancement using canvas (no OpenCV)
+ * @param {HTMLCanvasElement} canvas - Source canvas
+ * @returns {HTMLCanvasElement} Enhanced canvas
+ */
+function applySimpleEnhancement(canvas) {
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  // Calculate histogram for auto-contrast
+  let minVal = 255, maxVal = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    if (gray < minVal) minVal = gray;
+    if (gray > maxVal) maxVal = gray;
+  }
+
+  // Apply auto-contrast stretch
+  const range = maxVal - minVal;
+  if (range > 0 && range < 200) { // Only if contrast is low
+    const factor = 255 / range;
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.min(255, Math.max(0, (data[i] - minVal) * factor));     // R
+      data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - minVal) * factor)); // G
+      data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - minVal) * factor)); // B
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  return canvas;
+}
+
+/**
  * Apply crop and enhancement, then continue to AI analysis or add to multipage
  */
 async function applyCropAndContinue() {
@@ -680,8 +713,6 @@ async function applyCropAndContinue() {
   updateProcessingStatus('Dokument wird optimiert...', 'Zuschneiden und Verbessern');
 
   try {
-    await scanner.init();
-
     // Get corners in original image coordinates
     const viewBox = el.cropOverlay.viewBox.baseVal;
     const scaleX = cropState.originalImage.width / viewBox.width;
@@ -692,27 +723,38 @@ async function applyCropAndContinue() {
       y: c.y * scaleY
     }));
 
-    // Convert Image element to Canvas first to avoid iOS Safari issues
-    // where OpenCV might read the image incorrectly
-    const sourceCanvas = document.createElement('canvas');
-    sourceCanvas.width = cropState.originalImage.width;
-    sourceCanvas.height = cropState.originalImage.height;
-    const sourceCtx = sourceCanvas.getContext('2d');
-    sourceCtx.drawImage(cropState.originalImage, 0, 0);
-
-    console.log(`[Crop] Source canvas: ${sourceCanvas.width}x${sourceCanvas.height}`);
+    console.log(`[Crop] Original image: ${cropState.originalImage.width}x${cropState.originalImage.height}`);
     console.log(`[Crop] Corners:`, originalCorners);
 
-    // Apply perspective transform using canvas instead of Image element
-    let resultCanvas = scanner.perspectiveTransform(sourceCanvas, originalCorners);
+    // Use simple canvas-based crop instead of OpenCV to avoid iOS issues
+    // Calculate bounding box from corners
+    const minX = Math.min(...originalCorners.map(c => c.x));
+    const maxX = Math.max(...originalCorners.map(c => c.x));
+    const minY = Math.min(...originalCorners.map(c => c.y));
+    const maxY = Math.max(...originalCorners.map(c => c.y));
 
-    // Always apply auto enhancement
-    try {
-      resultCanvas = scanner.enhance(resultCanvas);
-    } catch (e) {
-      console.warn('Enhancement failed:', e);
-      resultCanvas = scanner.simpleEnhance(resultCanvas);
-    }
+    const cropWidth = Math.round(maxX - minX);
+    const cropHeight = Math.round(maxY - minY);
+
+    console.log(`[Crop] Bounding box: (${minX}, ${minY}) to (${maxX}, ${maxY}), size: ${cropWidth}x${cropHeight}`);
+
+    // Create result canvas with cropped region
+    let resultCanvas = document.createElement('canvas');
+    resultCanvas.width = cropWidth;
+    resultCanvas.height = cropHeight;
+    const ctx = resultCanvas.getContext('2d');
+
+    // Draw the cropped region from the original image
+    ctx.drawImage(
+      cropState.originalImage,
+      minX, minY, cropWidth, cropHeight,  // Source rectangle
+      0, 0, cropWidth, cropHeight          // Destination rectangle
+    );
+
+    console.log(`[Crop] Result canvas: ${resultCanvas.width}x${resultCanvas.height}`);
+
+    // Apply simple enhancement (contrast/brightness) without OpenCV
+    resultCanvas = applySimpleEnhancement(resultCanvas);
 
     // Convert canvas to image data
     const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.9);
