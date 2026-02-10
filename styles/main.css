@@ -264,7 +264,7 @@ body {
   flex-direction: column;
   gap: var(--spacing-md);
   width: 100%;
-  max-width: 300px;
+  max-width: 400px;
 }
 
 /* ========================================
@@ -1200,12 +1200,204 @@ body {
 }
 
 /* ========================================
+   Multipage Screen
+   ======================================== */
+
+.multipage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--spacing-lg);
+}
+
+.multipage__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.multipage__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.multipage__counter {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-full);
+}
+
+.multipage__pages {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--spacing-md);
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  min-height: 200px;
+}
+
+.multipage__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  color: var(--text-muted);
+  padding: var(--spacing-2xl);
+}
+
+.multipage__empty-icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.5;
+}
+
+.multipage__empty p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.multipage__page {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  background: var(--bg-primary);
+}
+
+.multipage__page-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multipage__page-number {
+  position: absolute;
+  bottom: var(--spacing-xs);
+  left: var(--spacing-xs);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.multipage__page-remove {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--color-error);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.multipage__page:hover .multipage__page-remove,
+.multipage__page:focus-within .multipage__page-remove {
+  opacity: 1;
+}
+
+/* Always show on touch devices */
+@media (hover: none) {
+  .multipage__page-remove {
+    opacity: 1;
+  }
+}
+
+.multipage__actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.multipage__actions .btn {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Success button style */
+.btn--success {
+  background: var(--color-success);
+  color: white;
+}
+
+.btn--success:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.btn--success:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Edit screen multipage preview */
+.edit__multipage-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.edit__multipage-thumbnails {
+  display: flex;
+  gap: var(--spacing-sm);
+  overflow-x: auto;
+  padding: var(--spacing-sm);
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.edit__multipage-thumb {
+  width: 60px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.edit__multipage-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-full);
+}
+
+/* ========================================
    Responsive
    ======================================== */
 
 @media (min-width: 640px) {
   .home__actions {
     flex-direction: row;
+    max-width: 600px;
+  }
+
+  .multipage__pages {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 
   .edit {

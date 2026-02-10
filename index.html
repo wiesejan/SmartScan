@@ -85,7 +85,17 @@
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
               <circle cx="12" cy="13" r="4"/>
             </svg>
-            Dokument scannen
+            Einzelseite scannen
+          </button>
+          <button type="button" class="btn btn--secondary btn--large" id="btn-start-multipage">
+            <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="16" height="18" rx="2"/>
+              <rect x="6" y="1" width="16" height="18" rx="2" fill="none"/>
+              <line x1="6" y1="8" x2="14" y2="8"/>
+              <line x1="6" y1="12" x2="14" y2="12"/>
+              <line x1="6" y1="16" x2="10" y2="16"/>
+            </svg>
+            Mehrseitiges Dokument
           </button>
         </div>
 
@@ -165,6 +175,49 @@
         </div>
       </section>
 
+      <!-- Multi-Page Management Screen -->
+      <section class="screen multipage" id="screen-multipage" aria-label="Mehrseitiges Dokument">
+        <div class="multipage__header">
+          <h2 class="multipage__title">Mehrseitiges Dokument</h2>
+          <span class="multipage__counter" id="multipage-counter">0 Seiten</span>
+        </div>
+
+        <div class="multipage__pages" id="multipage-pages">
+          <!-- Page thumbnails will be inserted here -->
+          <div class="multipage__empty" id="multipage-empty">
+            <svg class="multipage__empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="12" y1="8" x2="12" y2="16"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <p>Noch keine Seiten gescannt</p>
+          </div>
+        </div>
+
+        <div class="multipage__actions">
+          <button type="button" class="btn btn--secondary" id="btn-multipage-cancel">
+            <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Abbrechen
+          </button>
+          <button type="button" class="btn btn--primary" id="btn-multipage-add">
+            <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Seite hinzufugen
+          </button>
+          <button type="button" class="btn btn--success" id="btn-multipage-finish" disabled>
+            <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Fertig
+          </button>
+        </div>
+      </section>
+
       <!-- Processing Screen -->
       <section class="screen processing" id="screen-processing" aria-label="Verarbeitung">
         <div class="processing__preview">
@@ -180,8 +233,13 @@
 
       <!-- Edit Screen -->
       <section class="screen edit" id="screen-edit" aria-label="Bearbeiten">
-        <div class="edit__preview">
+        <div class="edit__preview" id="edit-preview-container">
           <img class="edit__preview-img" id="edit-preview" src="" alt="Dokument Vorschau">
+          <!-- Multi-page preview will be shown here if applicable -->
+          <div class="edit__multipage-preview hidden" id="edit-multipage-preview">
+            <div class="edit__multipage-thumbnails" id="edit-multipage-thumbnails"></div>
+            <span class="edit__multipage-label" id="edit-multipage-label">3 Seiten</span>
+          </div>
         </div>
 
         <form class="edit__form" id="edit-form">
@@ -276,6 +334,10 @@
           <div class="success__detail">
             <span class="success__detail-label">Kategorie</span>
             <span class="success__detail-value" id="success-category">-</span>
+          </div>
+          <div class="success__detail hidden" id="success-pages-container">
+            <span class="success__detail-label">Seiten</span>
+            <span class="success__detail-value" id="success-pages">-</span>
           </div>
         </div>
 

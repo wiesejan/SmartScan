@@ -16,7 +16,10 @@ export const state = {
   currentMetadata: null, // { category, date, name, sender, amount, confidence }
   processingStatus: 'idle', // 'idle', 'capturing', 'analyzing', 'uploading'
   error: null,
-  savedDocument: null // { filename, folder, category }
+  savedDocument: null, // { filename, folder, category }
+  // Multi-page state
+  isMultiPageMode: false,
+  scannedPages: [] // Array of { imageData: { blob, base64, dataUrl }, thumbnail: string }
 };
 
 /**
@@ -58,6 +61,7 @@ export function initUI() {
     home: document.getElementById('screen-home'),
     camera: document.getElementById('screen-camera'),
     crop: document.getElementById('screen-crop'),
+    multipage: document.getElementById('screen-multipage'),
     processing: document.getElementById('screen-processing'),
     edit: document.getElementById('screen-edit'),
     success: document.getElementById('screen-success')
@@ -68,6 +72,7 @@ export function initUI() {
     // Home
     authStatus: document.getElementById('auth-status'),
     btnStartScan: document.getElementById('btn-start-scan'),
+    btnStartMultipage: document.getElementById('btn-start-multipage'),
 
     // Camera
     cameraVideo: document.getElementById('camera-video'),
@@ -93,6 +98,14 @@ export function initUI() {
     btnCropBack: document.getElementById('btn-crop-back'),
     btnCropApply: document.getElementById('btn-crop-apply'),
 
+    // Multipage
+    multipageCounter: document.getElementById('multipage-counter'),
+    multipagePages: document.getElementById('multipage-pages'),
+    multipageEmpty: document.getElementById('multipage-empty'),
+    btnMultipageCancel: document.getElementById('btn-multipage-cancel'),
+    btnMultipageAdd: document.getElementById('btn-multipage-add'),
+    btnMultipageFinish: document.getElementById('btn-multipage-finish'),
+
     // Processing
     processingPreview: document.getElementById('processing-preview'),
     processingStatus: document.getElementById('processing-status'),
@@ -100,6 +113,10 @@ export function initUI() {
 
     // Edit
     editPreview: document.getElementById('edit-preview'),
+    editPreviewContainer: document.getElementById('edit-preview-container'),
+    editMultipagePreview: document.getElementById('edit-multipage-preview'),
+    editMultipageThumbnails: document.getElementById('edit-multipage-thumbnails'),
+    editMultipageLabel: document.getElementById('edit-multipage-label'),
     editForm: document.getElementById('edit-form'),
     editCategory: document.getElementById('edit-category'),
     editDate: document.getElementById('edit-date'),
@@ -112,6 +129,8 @@ export function initUI() {
     successFilename: document.getElementById('success-filename'),
     successFolder: document.getElementById('success-folder'),
     successCategory: document.getElementById('success-category'),
+    successPagesContainer: document.getElementById('success-pages-container'),
+    successPages: document.getElementById('success-pages'),
     btnScanAnother: document.getElementById('btn-scan-another'),
     btnGoHome: document.getElementById('btn-go-home'),
 
@@ -462,9 +481,163 @@ export function resetForNewScan() {
     currentMetadata: null,
     processingStatus: 'idle',
     error: null,
-    savedDocument: null
+    savedDocument: null,
+    isMultiPageMode: false,
+    scannedPages: []
   });
 
   // Clear form
   elements.editForm.reset();
+
+  // Clear multipage UI
+  clearMultipageUI();
+}
+
+/**
+ * Set multi-page mode
+ * @param {boolean} enabled
+ */
+export function setMultiPageMode(enabled) {
+  updateState({ isMultiPageMode: enabled, scannedPages: [] });
+  clearMultipageUI();
+}
+
+/**
+ * Add a page to multi-page document
+ * @param {Object} imageData - { blob, base64, dataUrl }
+ */
+export function addScannedPage(imageData) {
+  const pages = [...state.scannedPages, { imageData }];
+  updateState({ scannedPages: pages });
+  updateMultipageUI();
+}
+
+/**
+ * Remove a page from multi-page document
+ * @param {number} index
+ */
+export function removeScannedPage(index) {
+  const pages = state.scannedPages.filter((_, i) => i !== index);
+  updateState({ scannedPages: pages });
+  updateMultipageUI();
+}
+
+/**
+ * Clear the multipage UI
+ */
+function clearMultipageUI() {
+  if (elements.multipagePages) {
+    // Remove all page items except the empty message
+    const pageItems = elements.multipagePages.querySelectorAll('.multipage__page');
+    pageItems.forEach(item => item.remove());
+  }
+  if (elements.multipageEmpty) {
+    elements.multipageEmpty.classList.remove('hidden');
+  }
+  if (elements.multipageCounter) {
+    elements.multipageCounter.textContent = '0 Seiten';
+  }
+  if (elements.btnMultipageFinish) {
+    elements.btnMultipageFinish.disabled = true;
+  }
+  // Reset edit preview
+  if (elements.editMultipagePreview) {
+    elements.editMultipagePreview.classList.add('hidden');
+  }
+  if (elements.editPreview) {
+    elements.editPreview.classList.remove('hidden');
+  }
+}
+
+/**
+ * Update the multipage UI with current pages
+ */
+export function updateMultipageUI() {
+  const pages = state.scannedPages;
+  const count = pages.length;
+
+  // Update counter
+  elements.multipageCounter.textContent = `${count} ${count === 1 ? 'Seite' : 'Seiten'}`;
+
+  // Show/hide empty message
+  elements.multipageEmpty.classList.toggle('hidden', count > 0);
+
+  // Enable/disable finish button
+  elements.btnMultipageFinish.disabled = count === 0;
+
+  // Remove existing page items
+  const existingItems = elements.multipagePages.querySelectorAll('.multipage__page');
+  existingItems.forEach(item => item.remove());
+
+  // Add page thumbnails
+  pages.forEach((page, index) => {
+    const pageEl = document.createElement('div');
+    pageEl.className = 'multipage__page';
+    pageEl.innerHTML = `
+      <img class="multipage__page-img" src="${page.imageData.dataUrl}" alt="Seite ${index + 1}">
+      <span class="multipage__page-number">${index + 1}</span>
+      <button type="button" class="multipage__page-remove" aria-label="Seite entfernen" data-index="${index}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    `;
+    elements.multipagePages.appendChild(pageEl);
+  });
+}
+
+/**
+ * Update edit preview for multi-page document
+ */
+export function updateEditPreviewMultipage() {
+  const pages = state.scannedPages;
+
+  if (pages.length > 1) {
+    // Show multi-page preview
+    elements.editPreview.classList.add('hidden');
+    elements.editMultipagePreview.classList.remove('hidden');
+
+    // Update label
+    elements.editMultipageLabel.textContent = `${pages.length} Seiten`;
+
+    // Clear and add thumbnails
+    elements.editMultipageThumbnails.innerHTML = '';
+    pages.forEach((page, index) => {
+      const thumb = document.createElement('img');
+      thumb.className = 'edit__multipage-thumb';
+      thumb.src = page.imageData.dataUrl;
+      thumb.alt = `Seite ${index + 1}`;
+      elements.editMultipageThumbnails.appendChild(thumb);
+    });
+  } else if (pages.length === 1) {
+    // Single page in multi-page mode
+    elements.editPreview.classList.remove('hidden');
+    elements.editMultipagePreview.classList.add('hidden');
+    elements.editPreview.src = pages[0].imageData.dataUrl;
+  }
+}
+
+/**
+ * Show success with page count
+ * @param {Object} details - { filename, folder, category, pageCount }
+ */
+export function showSuccessMultipage(details) {
+  updateState({ savedDocument: details });
+
+  elements.successFilename.textContent = details.filename;
+  elements.successFolder.textContent = details.folder;
+
+  const category = getCategoryById(details.category);
+  elements.successCategory.textContent = category?.label || details.category;
+
+  // Show page count if multi-page
+  if (details.pageCount && details.pageCount > 1) {
+    elements.successPagesContainer.classList.remove('hidden');
+    elements.successPages.textContent = details.pageCount;
+  } else {
+    elements.successPagesContainer.classList.add('hidden');
+  }
+
+  showScreen('success');
 }

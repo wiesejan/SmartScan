@@ -32,6 +32,12 @@ import {
   setSaveButtonEnabled,
   getElements,
   resetForNewScan,
+  setMultiPageMode,
+  addScannedPage,
+  removeScannedPage,
+  updateMultipageUI,
+  updateEditPreviewMultipage,
+  showSuccessMultipage,
   state
 } from './ui.js';
 
@@ -131,7 +137,8 @@ function bindEvents() {
   const el = getElements();
 
   // Home screen
-  el.btnStartScan.addEventListener('click', startScan);
+  el.btnStartScan.addEventListener('click', () => startScan(false));
+  el.btnStartMultipage.addEventListener('click', () => startScan(true));
 
   // Camera screen
   el.btnCapture.addEventListener('click', captureImage);
@@ -145,11 +152,25 @@ function bindEvents() {
 
   // Crop screen
   el.btnCropBack.addEventListener('click', () => {
-    resetForNewScan();
-    showScreen('home');
+    if (state.isMultiPageMode && state.scannedPages.length > 0) {
+      // Go back to multipage screen instead of home
+      showScreen('multipage');
+    } else {
+      resetForNewScan();
+      showScreen('home');
+    }
   });
   el.btnCropApply.addEventListener('click', applyCropAndContinue);
   initCropHandles();
+
+  // Multipage screen
+  el.btnMultipageCancel.addEventListener('click', () => {
+    resetForNewScan();
+    showScreen('home');
+  });
+  el.btnMultipageAdd.addEventListener('click', () => addPageToMultipage());
+  el.btnMultipageFinish.addEventListener('click', () => finishMultipage());
+  el.multipagePages.addEventListener('click', handleMultipagePageClick);
 
   // Edit screen
   el.btnEditBack.addEventListener('click', () => {
@@ -159,7 +180,7 @@ function bindEvents() {
   el.editForm.addEventListener('submit', handleSave);
 
   // Success screen
-  el.btnScanAnother.addEventListener('click', startScan);
+  el.btnScanAnother.addEventListener('click', () => startScan(false));
   el.btnGoHome.addEventListener('click', () => {
     resetForNewScan();
     showScreen('home');
@@ -218,8 +239,9 @@ let detectionState = {
 
 /**
  * Start scanning workflow
+ * @param {boolean} multiPageMode - Whether to scan multiple pages
  */
-async function startScan() {
+async function startScan(multiPageMode = false) {
   // Check prerequisites - only Dropbox needed now
   if (!dropboxAPI.isAuthenticated()) {
     showToast('Bitte mit Dropbox verbinden', 'warning');
@@ -228,6 +250,14 @@ async function startScan() {
   }
 
   resetForNewScan();
+  setMultiPageMode(multiPageMode);
+
+  if (multiPageMode) {
+    // Show multipage management screen first
+    showScreen('multipage');
+    return;
+  }
+
   showScreen('camera');
 
   const el = getElements();
@@ -641,7 +671,7 @@ function initCropHandles() {
 }
 
 /**
- * Apply crop and enhancement, then continue to AI analysis
+ * Apply crop and enhancement, then continue to AI analysis or add to multipage
  */
 async function applyCropAndContinue() {
   const el = getElements();
@@ -683,14 +713,202 @@ async function applyCropAndContinue() {
       blob: await (await fetch(dataUrl)).blob()
     };
 
-    // Continue to AI analysis
-    await processImage(processedImageData);
+    // Check if in multipage mode
+    if (state.isMultiPageMode) {
+      // Add page to collection and return to multipage screen
+      addScannedPage(processedImageData);
+      showScreen('multipage');
+      showToast(`Seite ${state.scannedPages.length} hinzugefugt`, 'success');
+    } else {
+      // Single page mode - continue to AI analysis
+      await processImage(processedImageData);
+    }
 
   } catch (error) {
     console.error('Crop error:', error);
     showToast('Fehler bei Bildoptimierung: ' + error.message, 'error');
-    // Continue with original image
-    await processImage(cropState.imageData);
+
+    if (state.isMultiPageMode) {
+      // Add original image to multipage
+      addScannedPage(cropState.imageData);
+      showScreen('multipage');
+    } else {
+      // Continue with original image for single page
+      await processImage(cropState.imageData);
+    }
+  }
+}
+
+/**
+ * Add a new page to multi-page document
+ */
+async function addPageToMultipage() {
+  showScreen('camera');
+
+  const el = getElements();
+
+  // Initialize camera
+  try {
+    camera.init(
+      document.getElementById('camera-video'),
+      document.getElementById('camera-canvas')
+    );
+    await camera.start();
+
+    // Initialize scanner for auto-detection
+    try {
+      await scanner.init();
+      startAutoDetection();
+    } catch (e) {
+      console.warn('Auto-detection not available:', e);
+      el.cameraStatus.textContent = 'Manuell aufnehmen';
+    }
+  } catch (error) {
+    console.error('Camera error:', error);
+    showToast(error.message, 'error');
+    showScreen('multipage');
+  }
+}
+
+/**
+ * Finish multi-page document and process
+ */
+async function finishMultipage() {
+  if (state.scannedPages.length === 0) {
+    showToast('Bitte mindestens eine Seite scannen', 'warning');
+    return;
+  }
+
+  // Process all pages
+  await processMultiplePages(state.scannedPages);
+}
+
+/**
+ * Handle click on multipage page (for remove button)
+ * @param {Event} e
+ */
+function handleMultipagePageClick(e) {
+  const removeBtn = e.target.closest('.multipage__page-remove');
+  if (removeBtn) {
+    const index = parseInt(removeBtn.dataset.index, 10);
+    removeScannedPage(index);
+    showToast('Seite entfernt', 'info');
+  }
+}
+
+/**
+ * Process multiple pages with local OCR and classification
+ * @param {Array} pages - Array of { imageData: { blob, base64, dataUrl } }
+ */
+async function processMultiplePages(pages) {
+  showScreen('processing');
+  updateProcessingProgress(0, true);
+  updateProcessingStatus('OCR wird initialisiert...', 'Texterkennung wird vorbereitet');
+
+  try {
+    // Initialize OCR with progress callback
+    await ocrService.init((percent, status) => {
+      updateProcessingProgress(percent * 0.3, true); // OCR init is 0-30%
+      updateProcessingStatus('OCR wird geladen...', status);
+    });
+
+    updateProcessingProgress(30, true);
+    updateProcessingStatus('Text wird erkannt...', `${pages.length} Seiten werden gelesen`);
+
+    // Perform OCR on all pages
+    let combinedText = '';
+    const pageTexts = [];
+
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      updateProcessingStatus('Text wird erkannt...', `Seite ${i + 1} von ${pages.length}`);
+
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = page.imageData.dataUrl;
+      });
+
+      const ocrResult = await ocrService.recognize(img);
+      pageTexts.push(ocrResult.text);
+      combinedText += ocrResult.text + '\n\n';
+
+      const progress = 30 + ((i + 1) / pages.length) * 40;
+      updateProcessingProgress(progress, true);
+    }
+
+    console.log('Combined OCR text:', combinedText.slice(0, 500) + '...');
+
+    // Extract structured data from combined text
+    const structuredData = ocrService.extractStructuredData(combinedText);
+    console.log('Structured data:', structuredData);
+
+    updateProcessingProgress(70, true);
+    updateProcessingStatus('Dokument wird klassifiziert...', 'Kategorie wird ermittelt');
+
+    // Initialize classifier
+    await classifier.init({
+      useML: CONFIG.classifier.useML,
+      onProgress: (percent, status) => {
+        updateProcessingProgress(70 + percent * 0.25, true);
+        updateProcessingStatus('Klassifizierer wird geladen...', status);
+      }
+    });
+
+    // Classify based on combined text
+    const ocrResult = { text: combinedText, structuredData };
+    const classification = await classifier.classify(ocrResult);
+    console.log('Classification result:', classification);
+
+    updateProcessingProgress(100, true);
+
+    // Build metadata from classification
+    const metadata = {
+      category: classification.category,
+      date: classification.date || formatDate(new Date()),
+      name: classification.name || 'Dokument',
+      sender: classification.sender,
+      amount: classification.amount,
+      confidence: classification.confidence,
+      pageCount: pages.length
+    };
+
+    console.log('Final metadata:', metadata);
+    setMetadata(metadata);
+
+    // Update classification confidence UI
+    updateClassificationConfidence(classification.confidence);
+
+    // Show alternatives if confidence is low
+    if (classification.confidence < CONFIG.classifier.showReviewIfBelow) {
+      const alternatives = classifier.getAlternatives(classification);
+      showCategoryAlternatives(alternatives);
+    }
+
+    // Update edit preview for multipage
+    updateEditPreviewMultipage();
+
+    // Show edit screen
+    updateProcessingProgress(0, false);
+    showScreen('edit');
+
+  } catch (error) {
+    console.error('Analysis error:', error);
+    showToast('Analyse fehlgeschlagen: ' + error.message, 'error');
+
+    // Still allow manual entry
+    setMetadata({
+      category: 'other',
+      date: formatDate(new Date()),
+      name: 'Dokument',
+      confidence: 0,
+      pageCount: pages.length
+    });
+    updateClassificationConfidence(0);
+    updateEditPreviewMultipage();
+    updateProcessingProgress(0, false);
+    showScreen('edit');
   }
 }
 
@@ -818,23 +1036,48 @@ async function handleSave(e) {
     const folder = `${CONFIG.dropbox.baseFolder}/${category.folder}`;
     const path = `${folder}/${filename}`;
 
-    // Convert to PDF
-    updateProcessingStatus('PDF wird erstellt...', 'Konvertierung läuft');
-    const pdfBlob = await pdfConverter.convert(state.currentImage.dataUrl, {
-      name: formData.name,
-      category: formData.category
-    });
+    let pdfBlob;
+    let pageCount = 1;
+
+    // Check if multipage mode
+    if (state.isMultiPageMode && state.scannedPages.length > 0) {
+      // Convert multiple pages to PDF
+      pageCount = state.scannedPages.length;
+      updateProcessingStatus('PDF wird erstellt...', `${pageCount} Seiten werden konvertiert`);
+
+      const imageDataUrls = state.scannedPages.map(p => p.imageData.dataUrl);
+      pdfBlob = await pdfConverter.convertMultiple(imageDataUrls, {
+        name: formData.name,
+        category: formData.category
+      });
+    } else {
+      // Single page PDF
+      updateProcessingStatus('PDF wird erstellt...', 'Konvertierung läuft');
+      pdfBlob = await pdfConverter.convert(state.currentImage.dataUrl, {
+        name: formData.name,
+        category: formData.category
+      });
+    }
 
     // Upload to Dropbox
     updateProcessingStatus('Wird hochgeladen...', 'Speichern in Dropbox');
     await dropboxAPI.uploadFile(pdfBlob, path);
 
     // Show success
-    showSuccess({
-      filename,
-      folder,
-      category: formData.category
-    });
+    if (pageCount > 1) {
+      showSuccessMultipage({
+        filename,
+        folder,
+        category: formData.category,
+        pageCount
+      });
+    } else {
+      showSuccess({
+        filename,
+        folder,
+        category: formData.category
+      });
+    }
 
     showToast('Dokument erfolgreich gespeichert', 'success');
 
