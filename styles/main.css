@@ -356,19 +356,20 @@ body {
 }
 
 .camera.active {
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 
 .camera__viewfinder {
-  flex: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: #000;
-  position: relative;
   overflow: hidden;
-  min-height: 0;
 }
 
 .camera__video {
@@ -449,12 +450,17 @@ body {
 }
 
 .camera__controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-xl);
   padding: var(--spacing-lg);
-  background-color: var(--bg-primary);
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+  z-index: 20;
 }
 
 .camera__capture-btn {
@@ -484,13 +490,14 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background-color: var(--bg-secondary);
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
 
 .camera__upload-label:hover {
-  background-color: var(--bg-tertiary);
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .camera__upload-input {
@@ -500,6 +507,12 @@ body {
 .camera__switch-btn {
   width: 48px;
   height: 48px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.camera__switch-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 /* ========================================
