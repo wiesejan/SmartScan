@@ -47,7 +47,7 @@ class PDFConverter {
   /**
    * Convert an image to PDF
    * @param {string} imageDataUrl - Image as data URL
-   * @param {Object} metadata - Document metadata
+   * @param {Object} metadata - Document metadata (name, category, notes)
    * @returns {Promise<Blob>} PDF as Blob
    */
   async convert(imageDataUrl, metadata = {}) {
@@ -67,14 +67,22 @@ class PDFConverter {
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = CONFIG.pdf.margin; // 5mm = 0.5cm
 
+    // Reserve space for notes if present
+    const notesHeight = metadata.notes ? this.calculateNotesHeight(pdf, metadata.notes, pageWidth, margin) : 0;
+
     // Calculate image position with minimal margins
     const { x, y, width, height } = this.calculateImagePosition(
-      pageWidth, pageHeight, margin, imageDataUrl, await this.loadImage(imageDataUrl)
+      pageWidth, pageHeight, margin, await this.loadImage(imageDataUrl), notesHeight
     );
 
     // Add image to PDF
     const format = this.getImageFormat(imageDataUrl);
     pdf.addImage(imageDataUrl, format, x, y, width, height);
+
+    // Add notes below image if present
+    if (metadata.notes) {
+      this.addNotesText(pdf, metadata.notes, margin, y + height + 3, pageWidth);
+    }
 
     // Add metadata
     if (metadata.name) {
@@ -97,16 +105,16 @@ class PDFConverter {
    * @param {number} pageWidth - Page width in mm
    * @param {number} pageHeight - Page height in mm
    * @param {number} margin - Desired margin in mm (0.5cm = 5mm)
-   * @param {string} imageDataUrl - Image data URL
    * @param {HTMLImageElement} img - Loaded image element
+   * @param {number} reservedBottom - Space reserved at bottom for notes (mm)
    * @returns {Object} { x, y, width, height }
    */
-  calculateImagePosition(pageWidth, pageHeight, margin, imageDataUrl, img) {
+  calculateImagePosition(pageWidth, pageHeight, margin, img, reservedBottom = 0) {
     const imgRatio = img.width / img.height;
 
     // Maximum available space with minimal margins
     const maxWidth = pageWidth - (margin * 2);
-    const maxHeight = pageHeight - (margin * 2);
+    const maxHeight = pageHeight - (margin * 2) - reservedBottom;
     const pageRatio = maxWidth / maxHeight;
 
     let imgWidth, imgHeight, x, y;
@@ -131,9 +139,58 @@ class PDFConverter {
   }
 
   /**
+   * Calculate height needed for notes text
+   * @param {jsPDF} pdf - PDF document
+   * @param {string} notes - Notes text
+   * @param {number} pageWidth - Page width in mm
+   * @param {number} margin - Page margin in mm
+   * @returns {number} Height in mm
+   */
+  calculateNotesHeight(pdf, notes, pageWidth, margin) {
+    if (!notes || !notes.trim()) return 0;
+
+    const maxWidth = pageWidth - (margin * 2);
+    const fontSize = 9;
+    const lineHeight = fontSize * 0.4; // mm per line
+
+    pdf.setFontSize(fontSize);
+    const lines = pdf.splitTextToSize(notes.trim(), maxWidth);
+
+    // Height = lines * lineHeight + padding (3mm top + 2mm bottom)
+    return (lines.length * lineHeight) + 5;
+  }
+
+  /**
+   * Add notes text to PDF
+   * @param {jsPDF} pdf - PDF document
+   * @param {string} notes - Notes text
+   * @param {number} margin - Page margin in mm
+   * @param {number} yPosition - Y position to start text
+   * @param {number} pageWidth - Page width in mm
+   */
+  addNotesText(pdf, notes, margin, yPosition, pageWidth) {
+    if (!notes || !notes.trim()) return;
+
+    const maxWidth = pageWidth - (margin * 2);
+
+    // Set font style for notes
+    pdf.setFontSize(9);
+    pdf.setTextColor(80, 80, 80); // Dark gray
+
+    // Split text to fit width
+    const lines = pdf.splitTextToSize(notes.trim(), maxWidth);
+
+    // Add text
+    pdf.text(lines, margin, yPosition);
+
+    // Reset text color
+    pdf.setTextColor(0, 0, 0);
+  }
+
+  /**
    * Convert multiple images to a single PDF
    * @param {string[]} imageDataUrls - Array of image data URLs
-   * @param {Object} metadata - Document metadata
+   * @param {Object} metadata - Document metadata (name, category, notes)
    * @returns {Promise<Blob>} PDF as Blob
    */
   async convertMultiple(imageDataUrls, metadata = {}) {
@@ -151,6 +208,10 @@ class PDFConverter {
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = CONFIG.pdf.margin; // 5mm = 0.5cm
 
+    // Calculate notes height for last page
+    const notesHeight = metadata.notes ? this.calculateNotesHeight(pdf, metadata.notes, pageWidth, margin) : 0;
+    const isLastPage = (i) => i === imageDataUrls.length - 1;
+
     for (let i = 0; i < imageDataUrls.length; i++) {
       if (i > 0) {
         pdf.addPage();
@@ -159,13 +220,21 @@ class PDFConverter {
       const imageDataUrl = imageDataUrls[i];
       const img = await this.loadImage(imageDataUrl);
 
+      // Reserve space for notes only on last page
+      const reservedBottom = isLastPage(i) ? notesHeight : 0;
+
       // Calculate image position with minimal margins, top-aligned
       const { x, y, width, height } = this.calculateImagePosition(
-        pageWidth, pageHeight, margin, imageDataUrl, img
+        pageWidth, pageHeight, margin, img, reservedBottom
       );
 
       const format = this.getImageFormat(imageDataUrl);
       pdf.addImage(imageDataUrl, format, x, y, width, height);
+
+      // Add notes on last page
+      if (isLastPage(i) && metadata.notes) {
+        this.addNotesText(pdf, metadata.notes, margin, y + height + 3, pageWidth);
+      }
     }
 
     // Add metadata

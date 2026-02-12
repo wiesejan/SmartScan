@@ -1235,7 +1235,8 @@ async function handleSave(e) {
       const imageDataUrls = state.scannedPages.map(p => p.imageData.dataUrl);
       pdfBlob = await pdfConverter.convertMultiple(imageDataUrls, {
         name: formData.name,
-        category: formData.category
+        category: formData.category,
+        notes: formData.notes
       });
     } else {
       // Single page PDF
@@ -1250,7 +1251,8 @@ async function handleSave(e) {
       console.log('[Save] Converting to PDF, dataUrl length:', state.currentImage.dataUrl.length);
       pdfBlob = await pdfConverter.convert(state.currentImage.dataUrl, {
         name: formData.name,
-        category: formData.category
+        category: formData.category,
+        notes: formData.notes
       });
       console.log('[Save] PDF created, size:', pdfBlob?.size);
     }
