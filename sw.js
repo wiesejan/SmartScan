@@ -3,7 +3,7 @@
  * Handles caching and offline functionality
  */
 
-const CACHE_NAME = 'smartscan-v15';
+const CACHE_NAME = 'smartscan-v16';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

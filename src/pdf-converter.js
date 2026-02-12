@@ -65,34 +65,16 @@ class PDFConverter {
     // Get page dimensions
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = CONFIG.pdf.margin;
-    const maxWidth = pageWidth - (margin * 2);
-    const maxHeight = pageHeight - (margin * 2);
+    const margin = CONFIG.pdf.margin; // 5mm = 0.5cm
 
-    // Load image to get dimensions
-    const img = await this.loadImage(imageDataUrl);
-    const imgRatio = img.width / img.height;
-    const pageRatio = maxWidth / maxHeight;
-
-    let imgWidth, imgHeight;
-
-    if (imgRatio > pageRatio) {
-      // Image is wider than page
-      imgWidth = maxWidth;
-      imgHeight = maxWidth / imgRatio;
-    } else {
-      // Image is taller than page
-      imgHeight = maxHeight;
-      imgWidth = maxHeight * imgRatio;
-    }
-
-    // Center image on page
-    const x = margin + (maxWidth - imgWidth) / 2;
-    const y = margin + (maxHeight - imgHeight) / 2;
+    // Calculate image position with minimal margins
+    const { x, y, width, height } = this.calculateImagePosition(
+      pageWidth, pageHeight, margin, imageDataUrl, await this.loadImage(imageDataUrl)
+    );
 
     // Add image to PDF
     const format = this.getImageFormat(imageDataUrl);
-    pdf.addImage(imageDataUrl, format, x, y, imgWidth, imgHeight);
+    pdf.addImage(imageDataUrl, format, x, y, width, height);
 
     // Add metadata
     if (metadata.name) {
@@ -107,6 +89,45 @@ class PDFConverter {
 
     // Return as blob
     return pdf.output('blob');
+  }
+
+  /**
+   * Calculate image position on page with minimal margins
+   * Top margin is prioritized (0.5cm) when aspect ratios differ
+   * @param {number} pageWidth - Page width in mm
+   * @param {number} pageHeight - Page height in mm
+   * @param {number} margin - Desired margin in mm (0.5cm = 5mm)
+   * @param {string} imageDataUrl - Image data URL
+   * @param {HTMLImageElement} img - Loaded image element
+   * @returns {Object} { x, y, width, height }
+   */
+  calculateImagePosition(pageWidth, pageHeight, margin, imageDataUrl, img) {
+    const imgRatio = img.width / img.height;
+
+    // Maximum available space with minimal margins
+    const maxWidth = pageWidth - (margin * 2);
+    const maxHeight = pageHeight - (margin * 2);
+    const pageRatio = maxWidth / maxHeight;
+
+    let imgWidth, imgHeight, x, y;
+
+    if (imgRatio > pageRatio) {
+      // Image is wider than page ratio - will have extra vertical space
+      imgWidth = maxWidth;
+      imgHeight = maxWidth / imgRatio;
+      // Center horizontally, top-align vertically (top margin = 0.5cm)
+      x = margin;
+      y = margin; // Top-aligned
+    } else {
+      // Image is taller than page ratio - will have extra horizontal space
+      imgHeight = maxHeight;
+      imgWidth = maxHeight * imgRatio;
+      // Center horizontally, use full vertical space
+      x = margin + (maxWidth - imgWidth) / 2;
+      y = margin;
+    }
+
+    return { x, y, width: imgWidth, height: imgHeight };
   }
 
   /**
@@ -128,9 +149,7 @@ class PDFConverter {
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = CONFIG.pdf.margin;
-    const maxWidth = pageWidth - (margin * 2);
-    const maxHeight = pageHeight - (margin * 2);
+    const margin = CONFIG.pdf.margin; // 5mm = 0.5cm
 
     for (let i = 0; i < imageDataUrls.length; i++) {
       if (i > 0) {
@@ -139,24 +158,14 @@ class PDFConverter {
 
       const imageDataUrl = imageDataUrls[i];
       const img = await this.loadImage(imageDataUrl);
-      const imgRatio = img.width / img.height;
-      const pageRatio = maxWidth / maxHeight;
 
-      let imgWidth, imgHeight;
-
-      if (imgRatio > pageRatio) {
-        imgWidth = maxWidth;
-        imgHeight = maxWidth / imgRatio;
-      } else {
-        imgHeight = maxHeight;
-        imgWidth = maxHeight * imgRatio;
-      }
-
-      const x = margin + (maxWidth - imgWidth) / 2;
-      const y = margin + (maxHeight - imgHeight) / 2;
+      // Calculate image position with minimal margins, top-aligned
+      const { x, y, width, height } = this.calculateImagePosition(
+        pageWidth, pageHeight, margin, imageDataUrl, img
+      );
 
       const format = this.getImageFormat(imageDataUrl);
-      pdf.addImage(imageDataUrl, format, x, y, imgWidth, imgHeight);
+      pdf.addImage(imageDataUrl, format, x, y, width, height);
     }
 
     // Add metadata

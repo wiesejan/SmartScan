@@ -90,7 +90,7 @@ export const CONFIG = {
   pdf: {
     pageFormat: 'a4',
     orientation: 'portrait',
-    margin: 10 // mm
+    margin: 5 // mm (0.5cm) - minimal margin, top-aligned when aspect differs
   },
 
   // Storage keys for sessionStorage/localStorage
