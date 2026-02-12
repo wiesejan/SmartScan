@@ -4,7 +4,6 @@
  */
 
 import { CONFIG, getCategoryById } from './config.js';
-import { sanitizeFilename } from './utils.js';
 
 /**
  * Application state
@@ -375,7 +374,6 @@ let filenameManuallyEdited = false;
 
 /**
  * Generate auto filename based on form values
- * Follows nomenclature: YYYYMMDD_Dokumenttyp_Korrespondent_Beschreibung_Attribute.pdf
  * @returns {string} Generated filename
  */
 export function generateAutoFilename() {
@@ -390,30 +388,29 @@ export function generateAutoFilename() {
   }
 
   // Format date as YYYYMMDD
-  const dateFormatted = (date || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+  const dateFormatted = date.replace(/-/g, '');
 
   // Get category label from config
   const categoryConfig = getCategoryById(category);
   const categoryLabel = categoryConfig?.label || 'Dokument';
 
-  // Build filename parts: YYYYMMDD_Dokumenttyp_Korrespondent_Beschreibung_Attribute
-  let filenameParts = [dateFormatted, categoryLabel];
+  // Build filename parts
+  let parts = [dateFormatted, categoryLabel];
 
   if (sender) {
-    filenameParts.push(sanitizeFilename(sender));
+    parts.push(sender.replace(/[<>:"/\\|?*]/g, '-'));
   }
 
   if (name) {
-    filenameParts.push(sanitizeFilename(name));
+    parts.push(name.replace(/[<>:"/\\|?*]/g, '-'));
   }
 
-  // Add amount for invoices/receipts
+  // Add amount for invoices
   if (amount && category === 'rechnung') {
-    const cleanAmount = amount.replace(/[€\s]/g, '').replace(',', '-');
-    filenameParts.push(cleanAmount + 'EUR');
+    parts.push(amount.replace(/[€\s]/g, '').replace(',', '-') + 'EUR');
   }
 
-  return filenameParts.join('_') + '.pdf';
+  return parts.join('_') + '.pdf';
 }
 
 /**

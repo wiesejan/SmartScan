@@ -692,7 +692,8 @@ function initCropHandles() {
 }
 
 /**
- * Apply simple image enhancement using canvas (no OpenCV)
+ * Apply document-optimized image enhancement using canvas
+ * Includes: auto-contrast, brightness boost, sharpening, background whitening
  * @param {HTMLCanvasElement} canvas - Source canvas
  * @returns {HTMLCanvasElement} Enhanced canvas
  */
@@ -700,28 +701,139 @@ function applySimpleEnhancement(canvas) {
   const ctx = canvas.getContext('2d');
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
+  const pixelCount = data.length / 4;
 
-  // Calculate histogram for auto-contrast
-  let minVal = 255, maxVal = 0;
+  // Step 1: Calculate histogram for percentile-based auto-contrast
+  const histogram = new Array(256).fill(0);
   for (let i = 0; i < data.length; i += 4) {
-    const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    if (gray < minVal) minVal = gray;
-    if (gray > maxVal) maxVal = gray;
+    const gray = Math.round((data[i] + data[i + 1] + data[i + 2]) / 3);
+    histogram[gray]++;
   }
 
-  // Apply auto-contrast stretch
-  const range = maxVal - minVal;
-  if (range > 0 && range < 200) { // Only if contrast is low
-    const factor = 255 / range;
-    for (let i = 0; i < data.length; i += 4) {
-      data[i] = Math.min(255, Math.max(0, (data[i] - minVal) * factor));     // R
-      data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - minVal) * factor)); // G
-      data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - minVal) * factor)); // B
-    }
-    ctx.putImageData(imageData, 0, 0);
+  // Find 1st and 99th percentile for robust contrast stretching
+  let cumulative = 0;
+  let lowPercentile = 0;
+  let highPercentile = 255;
+  const lowThreshold = pixelCount * 0.01;
+  const highThreshold = pixelCount * 0.99;
+
+  for (let i = 0; i < 256; i++) {
+    cumulative += histogram[i];
+    if (cumulative < lowThreshold) lowPercentile = i;
+    if (cumulative < highThreshold) highPercentile = i;
   }
+
+  // Ensure valid range
+  if (highPercentile <= lowPercentile) {
+    lowPercentile = 0;
+    highPercentile = 255;
+  }
+
+  const range = highPercentile - lowPercentile;
+  const contrastFactor = range > 0 ? 255 / range : 1;
+
+  // Step 2: Apply contrast stretch + brightness boost + slight gamma correction
+  const brightnessBoost = 15; // Add brightness for document readability
+  const gamma = 0.9; // Slight gamma < 1 brightens midtones
+
+  for (let i = 0; i < data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      // Contrast stretch
+      let val = (data[i + c] - lowPercentile) * contrastFactor;
+      // Brightness boost
+      val += brightnessBoost;
+      // Gamma correction
+      val = 255 * Math.pow(Math.max(0, val) / 255, gamma);
+      // Clamp
+      data[i + c] = Math.min(255, Math.max(0, Math.round(val)));
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // Step 3: Apply unsharp mask for sharpening
+  applyUnsharpMask(ctx, canvas.width, canvas.height, 0.5, 1);
 
   return canvas;
+}
+
+/**
+ * Apply unsharp mask sharpening
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ * @param {number} amount - Sharpening amount (0-1)
+ * @param {number} radius - Blur radius for mask
+ */
+function applyUnsharpMask(ctx, width, height, amount, radius) {
+  // Get original image
+  const original = ctx.getImageData(0, 0, width, height);
+  const originalData = new Uint8ClampedArray(original.data);
+
+  // Create blurred version using box blur (fast approximation)
+  const blurred = ctx.getImageData(0, 0, width, height);
+  boxBlur(blurred.data, width, height, radius);
+
+  // Apply unsharp mask: original + amount * (original - blurred)
+  for (let i = 0; i < original.data.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const diff = originalData[i + c] - blurred.data[i + c];
+      original.data[i + c] = Math.min(255, Math.max(0, Math.round(originalData[i + c] + amount * diff)));
+    }
+  }
+
+  ctx.putImageData(original, 0, 0);
+}
+
+/**
+ * Fast box blur for unsharp mask
+ * @param {Uint8ClampedArray} data - Image data
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @param {number} radius - Blur radius
+ */
+function boxBlur(data, width, height, radius) {
+  // Horizontal pass
+  const temp = new Uint8ClampedArray(data.length);
+  const kernelSize = radius * 2 + 1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = Math.min(width - 1, Math.max(0, x + dx));
+        const idx = (y * width + nx) * 4;
+        r += data[idx];
+        g += data[idx + 1];
+        b += data[idx + 2];
+        count++;
+      }
+      const idx = (y * width + x) * 4;
+      temp[idx] = r / count;
+      temp[idx + 1] = g / count;
+      temp[idx + 2] = b / count;
+      temp[idx + 3] = data[idx + 3];
+    }
+  }
+
+  // Vertical pass
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = Math.min(height - 1, Math.max(0, y + dy));
+        const idx = (ny * width + x) * 4;
+        r += temp[idx];
+        g += temp[idx + 1];
+        b += temp[idx + 2];
+        count++;
+      }
+      const idx = (y * width + x) * 4;
+      data[idx] = r / count;
+      data[idx + 1] = g / count;
+      data[idx + 2] = b / count;
+    }
+  }
 }
 
 /**
@@ -1107,8 +1219,7 @@ async function handleSave(e) {
     const category = getCategoryById(formData.category) || { id: 'other', label: 'Sonstiges', folder: 'Sonstiges' };
 
     // Get filename (either manual or auto-generated)
-    // Note: getFilename() already returns a sanitized filename
-    const filename = getFilename();
+    const filename = sanitizeFilename(getFilename());
     const folder = `${CONFIG.dropbox.baseFolder}/${category.folder}`;
     const path = `${folder}/${filename}`;
 
