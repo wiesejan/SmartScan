@@ -373,7 +373,21 @@ export function getFormData() {
 let filenameManuallyEdited = false;
 
 /**
+ * Sanitize a string for use in filename (remove invalid characters)
+ * @param {string} str - Input string
+ * @returns {string} Sanitized string
+ */
+function sanitizeForFilename(str) {
+  return str
+    .replace(/[<>:"/\\|?*]/g, '-')  // Replace invalid chars
+    .replace(/\s+/g, '.')           // Replace spaces with dots
+    .replace(/\.{2,}/g, '.')        // Collapse multiple dots
+    .replace(/^\.+|\.+$/g, '');     // Trim dots at start/end
+}
+
+/**
  * Generate auto filename based on form values
+ * Format: YYYY-MM-DD_Absender_Kategorie_weitere.Attribute.pdf
  * @returns {string} Generated filename
  */
 export function generateAutoFilename() {
@@ -387,27 +401,35 @@ export function generateAutoFilename() {
     return '';
   }
 
-  // Format date as YYYYMMDD
-  const dateFormatted = date.replace(/-/g, '');
+  // Date is already in YYYY-MM-DD format from input[type="date"]
+  const dateFormatted = date;
 
   // Get category label from config
   const categoryConfig = getCategoryById(category);
   const categoryLabel = categoryConfig?.label || 'Dokument';
 
-  // Build filename parts
-  let parts = [dateFormatted, categoryLabel];
+  // Build filename parts: YYYY-MM-DD_Absender_Kategorie_weitere.Attribute
+  let parts = [dateFormatted];
 
+  // Add sender/institution if available
   if (sender) {
-    parts.push(sender.replace(/[<>:"/\\|?*]/g, '-'));
+    parts.push(sanitizeForFilename(sender));
   }
 
+  // Add category
+  parts.push(sanitizeForFilename(categoryLabel));
+
+  // Add additional attributes (description, amount)
+  let attributes = [];
   if (name) {
-    parts.push(name.replace(/[<>:"/\\|?*]/g, '-'));
+    attributes.push(sanitizeForFilename(name));
+  }
+  if (amount && category === 'rechnung') {
+    attributes.push(amount.replace(/[€\s]/g, '').replace(',', '-') + 'EUR');
   }
 
-  // Add amount for invoices
-  if (amount && category === 'rechnung') {
-    parts.push(amount.replace(/[€\s]/g, '').replace(',', '-') + 'EUR');
+  if (attributes.length > 0) {
+    parts.push(attributes.join('.'));
   }
 
   return parts.join('_') + '.pdf';
