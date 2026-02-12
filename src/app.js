@@ -1107,7 +1107,8 @@ async function handleSave(e) {
     const category = getCategoryById(formData.category) || { id: 'other', label: 'Sonstiges', folder: 'Sonstiges' };
 
     // Get filename (either manual or auto-generated)
-    const filename = sanitizeFilename(getFilename());
+    // Note: getFilename() already returns a sanitized filename
+    const filename = getFilename();
     const folder = `${CONFIG.dropbox.baseFolder}/${category.folder}`;
     const path = `${folder}/${filename}`;
 
