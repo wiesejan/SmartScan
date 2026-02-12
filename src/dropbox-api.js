@@ -275,10 +275,25 @@ class DropboxAPI {
   }
 
   /**
-   * Create a folder (if it doesn't exist)
-   * @param {string} path - Folder path
+   * Create a folder and all parent folders (if they don't exist)
+   * @param {string} path - Folder path (e.g., '/SmartScan/Finanzen/Gehaltsabrechnung')
    */
   async createFolder(path) {
+    // Split path into parts and create each level
+    const parts = path.split('/').filter(p => p.length > 0);
+    let currentPath = '';
+
+    for (const part of parts) {
+      currentPath += '/' + part;
+      await this.createSingleFolder(currentPath);
+    }
+  }
+
+  /**
+   * Create a single folder (ignores if already exists)
+   * @param {string} path - Folder path
+   */
+  async createSingleFolder(path) {
     const response = await this.apiRequest('/files/create_folder_v2', {
       method: 'POST',
       headers: {
@@ -290,14 +305,32 @@ class DropboxAPI {
       })
     });
 
+    // 409 Conflict = folder already exists, that's fine
+    if (response.status === 409) {
+      return;
+    }
+
     if (!response.ok) {
       const responseText = await response.text();
-      // Ignore "folder exists" error
+      // Also check response body for conflict (backup check)
       if (responseText.includes('conflict')) {
         return;
       }
       throw new Error(`Folder creation failed: ${responseText.substring(0, 200)}`);
     }
+  }
+
+  /**
+   * Encode object for Dropbox-API-Arg header (escape non-ASCII characters)
+   * @param {Object} arg - Object to encode
+   * @returns {string} Encoded JSON string safe for HTTP headers
+   */
+  encodeDropboxArg(arg) {
+    const jsonStr = JSON.stringify(arg);
+    // Escape non-ASCII characters for HTTP header compatibility
+    return jsonStr.replace(/[\u007f-\uffff]/g, char => {
+      return '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+    });
   }
 
   /**
@@ -308,23 +341,33 @@ class DropboxAPI {
    * @returns {Promise<Object>} File metadata
    */
   async uploadFile(content, path, options = {}) {
+    if (!this.accessToken) {
+      throw new Error('Nicht mit Dropbox verbunden');
+    }
+
+    if (!content) {
+      throw new Error('Kein Inhalt zum Hochladen');
+    }
+
     // Ensure parent folder exists
     const folderPath = path.substring(0, path.lastIndexOf('/'));
     if (folderPath) {
       await this.createFolder(folderPath);
     }
 
+    const dropboxArg = {
+      path: path,
+      mode: options.overwrite ? 'overwrite' : 'add',
+      autorename: true,
+      mute: false
+    };
+
     const response = await fetch(`${CONFIG.dropbox.contentEndpoint}/files/upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/octet-stream',
-        'Dropbox-API-Arg': JSON.stringify({
-          path: path,
-          mode: options.overwrite ? 'overwrite' : 'add',
-          autorename: true,
-          mute: false
-        })
+        'Dropbox-API-Arg': this.encodeDropboxArg(dropboxArg)
       },
       body: content
     });

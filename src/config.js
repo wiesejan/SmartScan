@@ -13,15 +13,43 @@ export const CONFIG = {
 
   // Document categories for classification
   categories: [
-    { id: 'invoice', label: 'Rechnung', folder: 'Rechnungen' },
-    { id: 'receipt', label: 'Beleg', folder: 'Belege' },
-    { id: 'contract', label: 'Vertrag', folder: 'Verträge' },
-    { id: 'letter', label: 'Brief', folder: 'Briefe' },
-    { id: 'tax', label: 'Steuer', folder: 'Steuer' },
-    { id: 'insurance', label: 'Versicherung', folder: 'Versicherungen' },
-    { id: 'medical', label: 'Medizinisch', folder: 'Medizin' },
-    { id: 'bank', label: 'Bank', folder: 'Bank' },
-    { id: 'warranty', label: 'Garantie', folder: 'Garantien' },
+    // Finanzen
+    { id: 'fin-gehalt', label: 'Gehaltsabrechnung', folder: 'Finanzen/Gehaltsabrechnung' },
+    { id: 'fin-steuer', label: 'Steuerdokumente', folder: 'Finanzen/Steuerdokumente' },
+    { id: 'fin-bauspar', label: 'Bausparvertrag', folder: 'Finanzen/Bausparvertraege' },
+    { id: 'fin-dkb', label: 'DKB', folder: 'Finanzen/DKB' },
+    { id: 'fin-haspa', label: 'Haspa', folder: 'Finanzen/Haspa' },
+    { id: 'fin-depot', label: 'Wertpapierdepot', folder: 'Finanzen/Wertpapierdepots' },
+    { id: 'fin-bav', label: 'Betriebliche Altersvorsorge', folder: 'Finanzen/Betriebliche-Altersvorsorge' },
+    { id: 'fin-kreditkarte', label: 'Kreditkartenabrechnung', folder: 'Finanzen/Kreditkartenabrechnungen' },
+    // Rechnungen
+    { id: 'rechnung', label: 'Rechnung', folder: 'Rechnungen' },
+    // Verträge
+    { id: 'vertrag-erdgas', label: 'Erdgas', folder: 'Vertraege/Erdgas' },
+    { id: 'vertrag-mobilfunk', label: 'Mobilfunkvertrag', folder: 'Vertraege/Mobilfunk' },
+    { id: 'vertrag-internet', label: 'Internet + Telefon', folder: 'Vertraege/Internet-Telefon' },
+    { id: 'vertrag-strom', label: 'Strom', folder: 'Vertraege/Strom' },
+    // Versicherungen
+    { id: 'vers-auto', label: 'Auto + E-Scooter', folder: 'Versicherungen/Auto-E-Scooter' },
+    { id: 'vers-bu', label: 'Berufsunfähigkeit', folder: 'Versicherungen/Berufsunfaehigkeit' },
+    { id: 'vers-rente', label: 'Deutsche Rentenversicherung', folder: 'Versicherungen/Deutsche-Rentenversicherung' },
+    { id: 'vers-haftpflicht', label: 'Haftpflicht', folder: 'Versicherungen/Haftpflicht' },
+    { id: 'vers-hausrat', label: 'Hausrat', folder: 'Versicherungen/Hausrat' },
+    { id: 'vers-kranken', label: 'Krankenversicherung', folder: 'Versicherungen/Krankenversicherung' },
+    { id: 'vers-kuendigung', label: 'Kündigung Versicherung', folder: 'Versicherungen/Kuendigungen' },
+    { id: 'vers-rechtsschutz', label: 'Rechtsschutz', folder: 'Versicherungen/Rechtsschutz' },
+    { id: 'vers-reise', label: 'Reiseversicherung', folder: 'Versicherungen/Reiseversicherung' },
+    { id: 'vers-risiko-jan', label: 'Risiko-Leben Jan', folder: 'Versicherungen/Risiko-Leben-Jan' },
+    { id: 'vers-wohngebaeude', label: 'Wohngebäude', folder: 'Versicherungen/Wohngebaeude' },
+    { id: 'vers-zahn', label: 'Zahnzusatz', folder: 'Versicherungen/Zahnzusatz' },
+    // Medizin
+    { id: 'medizin', label: 'Medizinisches Dokument', folder: 'Medizin' },
+    // Ehe
+    { id: 'ehe', label: 'Ehedokument', folder: 'Ehedokumente' },
+    // Kinder
+    { id: 'kind-salome', label: 'Salomé', folder: 'Kinder/Salome' },
+    { id: 'kind-david', label: 'David', folder: 'Kinder/David' },
+    // Sonstiges
     { id: 'other', label: 'Sonstiges', folder: 'Sonstiges' }
   ],
 

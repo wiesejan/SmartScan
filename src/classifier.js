@@ -131,42 +131,87 @@ class DocumentClassifier {
 
     // Category scoring based on keywords
     const scores = {
-      invoice: 0,
-      receipt: 0,
-      contract: 0,
-      letter: 0,
-      tax: 0,
-      insurance: 0,
-      medical: 0,
-      bank: 0,
-      warranty: 0,
-      other: 0.1 // Small base score for fallback
+      // Finanzen
+      'fin-gehalt': 0,
+      'fin-steuer': 0,
+      'fin-bauspar': 0,
+      'fin-dkb': 0,
+      'fin-haspa': 0,
+      'fin-depot': 0,
+      'fin-bav': 0,
+      'fin-kreditkarte': 0,
+      // Rechnungen
+      'rechnung': 0,
+      // Verträge
+      'vertrag-erdgas': 0,
+      'vertrag-mobilfunk': 0,
+      'vertrag-internet': 0,
+      'vertrag-strom': 0,
+      // Versicherungen
+      'vers-auto': 0,
+      'vers-bu': 0,
+      'vers-rente': 0,
+      'vers-haftpflicht': 0,
+      'vers-hausrat': 0,
+      'vers-kranken': 0,
+      'vers-kuendigung': 0,
+      'vers-rechtsschutz': 0,
+      'vers-reise': 0,
+      'vers-risiko-jan': 0,
+      'vers-wohngebaeude': 0,
+      'vers-zahn': 0,
+      // Weitere
+      'medizin': 0,
+      'ehe': 0,
+      'kind-salome': 0,
+      'kind-david': 0,
+      'other': 0.1
     };
 
     // High-confidence keywords (strong indicators)
     const strongKeywords = {
-      invoice: ['rechnung', 'rechnungsnummer', 'invoice', 'rechnungsbetrag', 'zahlungsziel'],
-      receipt: ['kassenbon', 'quittung', 'kassier', 'bar bezahlt', 'wechselgeld'],
-      contract: ['vertrag', 'vertragspartner', 'vereinbarung', 'unterschrift', 'kündigung'],
-      letter: ['sehr geehrte', 'mit freundlichen grüßen', 'betreff:', 'ihr schreiben'],
-      tax: ['finanzamt', 'steuerbescheid', 'einkommensteuer', 'steuernummer', 'elster'],
-      insurance: ['versicherungspolice', 'versicherungsnehmer', 'deckungssumme', 'schadenfall'],
-      medical: ['diagnose', 'patient', 'arztpraxis', 'rezept', 'befund', 'krankenkasse'],
-      bank: ['kontoauszug', 'bankverbindung', 'iban', 'girokonto', 'überweisungsauftrag'],
-      warranty: ['garantieschein', 'gewährleistung', 'garantiefall', 'seriennummer']
+      // Finanzen
+      'fin-gehalt': ['gehaltsabrechnung', 'entgeltabrechnung', 'lohnabrechnung', 'bruttolohn', 'nettolohn', 'arbeitgeber'],
+      'fin-steuer': ['finanzamt', 'steuerbescheid', 'einkommensteuer', 'steuernummer', 'elster', 'steuererklärung', 'lohnsteuer'],
+      'fin-bauspar': ['bausparkasse', 'bausparvertrag', 'schwäbisch hall', 'wüstenrot', 'bausparsumme'],
+      'fin-dkb': ['deutsche kreditbank', 'dkb'],
+      'fin-haspa': ['hamburger sparkasse', 'haspa'],
+      'fin-depot': ['wertpapierdepot', 'depot', 'aktien', 'wertpapier', 'fonds', 'etf', 'dividende'],
+      'fin-bav': ['betriebliche altersvorsorge', 'direktversicherung', 'pensionskasse', 'unterstützungskasse'],
+      'fin-kreditkarte': ['kreditkartenabrechnung', 'visa', 'mastercard', 'kreditkarte'],
+      // Rechnungen
+      'rechnung': ['rechnung', 'rechnungsnummer', 'rechnungsbetrag', 'zahlungsziel', 'invoice'],
+      // Verträge
+      'vertrag-erdgas': ['erdgas', 'gasvertrag', 'gaslieferung', 'stadtwerke'],
+      'vertrag-mobilfunk': ['mobilfunk', 'handyvertrag', 'telekom', 'vodafone', 'o2', 'congstar', 'simkarte'],
+      'vertrag-internet': ['internetvertrag', 'dsl', 'glasfaser', 'router', 'telefonanschluss'],
+      'vertrag-strom': ['stromvertrag', 'stromlieferung', 'kwh', 'stromzähler', 'vattenfall', 'eon'],
+      // Versicherungen
+      'vers-auto': ['kfz-versicherung', 'autoversicherung', 'haftpflicht kfz', 'teilkasko', 'vollkasko', 'e-scooter'],
+      'vers-bu': ['berufsunfähigkeit', 'bu-versicherung', 'erwerbsminderung'],
+      'vers-rente': ['deutsche rentenversicherung', 'rentenversicherung', 'rentenbescheid', 'versicherungsnummer'],
+      'vers-haftpflicht': ['privathaftpflicht', 'haftpflichtversicherung', 'personenschaden', 'sachschaden'],
+      'vers-hausrat': ['hausratversicherung', 'hausrat', 'einbruchdiebstahl', 'brandschaden'],
+      'vers-kranken': ['krankenversicherung', 'krankenkasse', 'tk', 'aok', 'barmer', 'dak', 'versichertenkarte'],
+      'vers-kuendigung': ['kündigung', 'kündigungsbestätigung', 'versicherung gekündigt'],
+      'vers-rechtsschutz': ['rechtsschutzversicherung', 'rechtsschutz', 'anwaltskosten'],
+      'vers-reise': ['reiserücktritt', 'reisekranken', 'auslandskranken', 'reiseversicherung'],
+      'vers-risiko-jan': ['risikolebensversicherung', 'todesfallleistung'],
+      'vers-wohngebaeude': ['wohngebäudeversicherung', 'gebäudeversicherung', 'elementarschaden'],
+      'vers-zahn': ['zahnzusatzversicherung', 'zahnersatz', 'zahnbehandlung'],
+      // Weitere
+      'medizin': ['diagnose', 'patient', 'arztpraxis', 'rezept', 'befund', 'krankenhaus', 'überweisung'],
+      'ehe': ['heiratsurkunde', 'eheurkunde', 'standesamt', 'trauung', 'eheschließung'],
+      'kind-salome': ['salomé', 'salome'],
+      'kind-david': ['david']
     };
 
     // Medium-confidence keywords
     const mediumKeywords = {
-      invoice: ['betrag', 'mwst', 'netto', 'brutto', 'fällig', 'zahlen'],
-      receipt: ['summe', 'artikel', 'stück', 'preis', 'kasse'],
-      contract: ['laufzeit', 'gültig', 'partei', 'regelung', 'bestimmung'],
-      letter: ['mitteilung', 'information', 'nachricht', 'anliegen'],
-      tax: ['steuer', 'abgabe', 'einkommen', 'bescheid'],
-      insurance: ['versicherung', 'police', 'beitrag', 'leistung'],
-      medical: ['arzt', 'medizin', 'behandlung', 'gesundheit', 'therapie'],
-      bank: ['konto', 'bank', 'geld', 'überweisung', 'guthaben'],
-      warranty: ['garantie', 'hersteller', 'defekt', 'reparatur']
+      'fin-gehalt': ['gehalt', 'lohn', 'vergütung', 'sozialversicherung'],
+      'fin-steuer': ['steuer', 'abgabe', 'einkommen', 'bescheid'],
+      'rechnung': ['betrag', 'mwst', 'netto', 'brutto', 'fällig', 'zahlen'],
+      'medizin': ['arzt', 'medizin', 'behandlung', 'gesundheit', 'therapie', 'praxis']
     };
 
     // Score strong keywords (weight: 3)
@@ -189,13 +234,7 @@ class DocumentClassifier {
 
     // Bonus for extracted data patterns
     if (structuredData.amounts.length > 0) {
-      scores.invoice += 1;
-      scores.receipt += 1;
-    }
-
-    // Use keyword matches from structured data
-    for (const kw of structuredData.keywords) {
-      scores[kw.category] += kw.count * 2;
+      scores['rechnung'] += 1;
     }
 
     // Find best category
@@ -238,19 +277,18 @@ class DocumentClassifier {
     // German category labels for zero-shot classification
     const candidateLabels = [
       'Rechnung oder Zahlungsaufforderung',
-      'Kassenbon oder Quittung',
-      'Vertrag oder Vereinbarung',
-      'Brief oder Schreiben',
+      'Gehaltsabrechnung oder Lohnzettel',
       'Steuerdokument oder Finanzamt',
       'Versicherungsdokument',
       'Medizinisches Dokument oder Arztbrief',
       'Bankdokument oder Kontoauszug',
-      'Garantieschein oder Kaufbeleg'
+      'Vertrag oder Vereinbarung'
     ];
 
+    // Map ML results to new category IDs
     const categoryMap = [
-      'invoice', 'receipt', 'contract', 'letter',
-      'tax', 'insurance', 'medical', 'bank', 'warranty'
+      'rechnung', 'fin-gehalt', 'fin-steuer',
+      'vers-haftpflicht', 'medizin', 'fin-dkb', 'vertrag-strom'
     ];
 
     try {
@@ -313,20 +351,9 @@ class DocumentClassifier {
    * @returns {string} Generated name
    */
   generateDocumentName(category, structuredData, text) {
-    const categoryNames = {
-      invoice: 'Rechnung',
-      receipt: 'Beleg',
-      contract: 'Vertrag',
-      letter: 'Brief',
-      tax: 'Steuerdokument',
-      insurance: 'Versicherung',
-      medical: 'Arztdokument',
-      bank: 'Bankdokument',
-      warranty: 'Garantie',
-      other: 'Dokument'
-    };
-
-    let name = categoryNames[category] || 'Dokument';
+    // Get category label from config
+    const categoryConfig = CONFIG.categories.find(c => c.id === category);
+    let name = categoryConfig ? categoryConfig.label : 'Dokument';
 
     // Try to add sender/company name
     if (structuredData.sender) {
@@ -344,8 +371,8 @@ class DocumentClassifier {
       }
     }
 
-    // Add amount if it's an invoice or receipt
-    if ((category === 'invoice' || category === 'receipt') && structuredData.amounts.length > 0) {
+    // Add amount if it's an invoice
+    if (category === 'rechnung' && structuredData.amounts.length > 0) {
       // Use the largest amount
       const amounts = structuredData.amounts.map(a => {
         const num = parseFloat(a.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));

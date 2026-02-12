@@ -125,7 +125,9 @@ export function initUI() {
     editAmount: document.getElementById('edit-amount'),
     editAmountGroup: document.getElementById('edit-amount-group'),
     editNotes: document.getElementById('edit-notes'),
-    filenamePreview: document.getElementById('filename-preview'),
+    filenameInput: document.getElementById('edit-filename'),
+    filenameHint: document.getElementById('filename-hint'),
+    btnFilenameReset: document.getElementById('btn-filename-reset'),
     btnEditBack: document.getElementById('btn-edit-back'),
     btnSave: document.getElementById('btn-save'),
 
@@ -322,8 +324,12 @@ export function setCurrentImage(imageData) {
 
   // Update preview images
   if (imageData?.dataUrl) {
-    elements.processingPreview.src = imageData.dataUrl;
-    elements.editPreview.src = imageData.dataUrl;
+    if (elements.processingPreview) {
+      elements.processingPreview.src = imageData.dataUrl;
+    }
+    if (elements.editPreview) {
+      elements.editPreview.src = imageData.dataUrl;
+    }
   }
 }
 
@@ -363,61 +369,106 @@ export function getFormData() {
   };
 }
 
-/**
- * Update filename preview based on current form values
- */
-export function updateFilenamePreview() {
-  if (!elements.editCategory || !elements.filenamePreview) return;
+// Track if filename was manually edited
+let filenameManuallyEdited = false;
 
-  const category = elements.editCategory.value || '';
+/**
+ * Generate auto filename based on form values
+ * @returns {string} Generated filename
+ */
+export function generateAutoFilename() {
+  const category = elements.editCategory?.value || '';
   const date = elements.editDate?.value || '';
   const sender = elements.editSender?.value?.trim() || '';
   const name = elements.editName?.value?.trim() || '';
   const amount = elements.editAmount?.value?.trim() || '';
 
   if (!date || !category) {
-    if (elements.filenamePreview) {
-      elements.filenamePreview.textContent = '--';
-    }
-    return;
+    return '';
   }
 
   // Format date as YYYYMMDD
   const dateFormatted = date.replace(/-/g, '');
 
-  // Get category label
-  const categoryLabels = {
-    invoice: 'Rechnung',
-    receipt: 'Beleg',
-    contract: 'Vertrag',
-    letter: 'Brief',
-    tax: 'Steuer',
-    insurance: 'Versicherung',
-    medical: 'Medizinisch',
-    bank: 'Bank',
-    warranty: 'Garantie',
-    other: 'Sonstiges'
-  };
-  const categoryLabel = categoryLabels[category] || category;
+  // Get category label from config
+  const categoryConfig = getCategoryById(category);
+  const categoryLabel = categoryConfig?.label || 'Dokument';
 
   // Build filename parts
   let parts = [dateFormatted, categoryLabel];
 
   if (sender) {
-    parts.push(sender);
+    parts.push(sender.replace(/[<>:"/\\|?*]/g, '-'));
   }
 
   if (name) {
-    parts.push(name);
+    parts.push(name.replace(/[<>:"/\\|?*]/g, '-'));
   }
 
-  // Add amount for invoices/receipts
-  if (amount && (category === 'invoice' || category === 'receipt')) {
-    parts.push(amount.replace(/[€\s]/g, '') + 'EUR');
+  // Add amount for invoices
+  if (amount && category === 'rechnung') {
+    parts.push(amount.replace(/[€\s]/g, '').replace(',', '-') + 'EUR');
   }
 
-  const filename = parts.join('_').replace(/[<>:"/\\|?*]/g, '-') + '.pdf';
-  elements.filenamePreview.textContent = filename;
+  return parts.join('_') + '.pdf';
+}
+
+/**
+ * Update filename input based on current form values
+ * Only updates if not manually edited
+ */
+export function updateFilenamePreview() {
+  if (!elements.filenameInput) return;
+
+  const autoFilename = generateAutoFilename();
+
+  // Only update if not manually edited
+  if (!filenameManuallyEdited) {
+    elements.filenameInput.value = autoFilename;
+    elements.filenameInput.classList.add('auto-generated');
+    if (elements.filenameHint) {
+      elements.filenameHint.textContent = 'Automatisch generiert basierend auf Kategorie und Datum';
+    }
+  }
+}
+
+/**
+ * Mark filename as manually edited
+ */
+export function setFilenameManuallyEdited(edited) {
+  filenameManuallyEdited = edited;
+  if (elements.filenameInput) {
+    elements.filenameInput.classList.toggle('auto-generated', !edited);
+  }
+  if (elements.filenameHint) {
+    elements.filenameHint.textContent = edited
+      ? 'Manuell angepasst'
+      : 'Automatisch generiert basierend auf Kategorie und Datum';
+  }
+}
+
+/**
+ * Reset filename to auto-generated
+ */
+export function resetFilenameToAuto() {
+  filenameManuallyEdited = false;
+  updateFilenamePreview();
+}
+
+/**
+ * Get the current filename (manual or auto)
+ * @returns {string} Filename
+ */
+export function getFilename() {
+  if (elements.filenameInput?.value) {
+    let filename = elements.filenameInput.value.trim();
+    // Ensure .pdf extension
+    if (!filename.toLowerCase().endsWith('.pdf')) {
+      filename += '.pdf';
+    }
+    return filename;
+  }
+  return generateAutoFilename();
 }
 
 /**
@@ -556,6 +607,13 @@ export function resetForNewScan() {
 
   // Clear form
   elements.editForm.reset();
+
+  // Reset filename to auto-generated mode
+  filenameManuallyEdited = false;
+  if (elements.filenameInput) {
+    elements.filenameInput.value = '';
+    elements.filenameInput.classList.add('auto-generated');
+  }
 
   // Clear multipage UI
   clearMultipageUI();

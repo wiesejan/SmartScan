@@ -259,15 +259,47 @@
             <label class="form-label" for="edit-category">Kategorie</label>
             <select class="form-select" id="edit-category" required>
               <option value="">Bitte wählen...</option>
-              <option value="invoice">Rechnung</option>
-              <option value="receipt">Beleg</option>
-              <option value="contract">Vertrag</option>
-              <option value="letter">Brief</option>
-              <option value="tax">Steuer</option>
-              <option value="insurance">Versicherung</option>
-              <option value="medical">Medizinisch</option>
-              <option value="bank">Bank</option>
-              <option value="warranty">Garantie</option>
+              <optgroup label="Finanzen">
+                <option value="fin-gehalt">Gehaltsabrechnung</option>
+                <option value="fin-steuer">Steuerdokumente</option>
+                <option value="fin-bauspar">Bausparvertrag</option>
+                <option value="fin-dkb">DKB</option>
+                <option value="fin-haspa">Haspa</option>
+                <option value="fin-depot">Wertpapierdepot</option>
+                <option value="fin-bav">Betriebliche Altersvorsorge</option>
+                <option value="fin-kreditkarte">Kreditkartenabrechnung</option>
+              </optgroup>
+              <optgroup label="Rechnungen">
+                <option value="rechnung">Rechnung</option>
+              </optgroup>
+              <optgroup label="Verträge">
+                <option value="vertrag-erdgas">Erdgas</option>
+                <option value="vertrag-mobilfunk">Mobilfunkvertrag</option>
+                <option value="vertrag-internet">Internet + Telefon</option>
+                <option value="vertrag-strom">Strom</option>
+              </optgroup>
+              <optgroup label="Versicherungen">
+                <option value="vers-auto">Auto + E-Scooter</option>
+                <option value="vers-bu">Berufsunfähigkeit</option>
+                <option value="vers-rente">Deutsche Rentenversicherung</option>
+                <option value="vers-haftpflicht">Haftpflicht</option>
+                <option value="vers-hausrat">Hausrat</option>
+                <option value="vers-kranken">Krankenversicherung</option>
+                <option value="vers-kuendigung">Kündigung Versicherung</option>
+                <option value="vers-rechtsschutz">Rechtsschutz</option>
+                <option value="vers-reise">Reiseversicherung</option>
+                <option value="vers-risiko-jan">Risiko-Leben Jan</option>
+                <option value="vers-wohngebaeude">Wohngebäude</option>
+                <option value="vers-zahn">Zahnzusatz</option>
+              </optgroup>
+              <optgroup label="Weitere">
+                <option value="medizin">Medizinisches Dokument</option>
+                <option value="ehe">Ehedokument</option>
+              </optgroup>
+              <optgroup label="Kinder">
+                <option value="kind-salome">Salomé</option>
+                <option value="kind-david">David</option>
+              </optgroup>
               <option value="other">Sonstiges</option>
             </select>
             <div class="category-alternatives hidden" id="category-alternatives">
@@ -303,8 +335,17 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Vorschau Dateiname</label>
-            <p class="form-hint filename-preview" id="filename-preview">--</p>
+            <label class="form-label" for="edit-filename">Dateiname</label>
+            <div class="filename-container">
+              <input type="text" class="form-input filename-input" id="edit-filename" placeholder="Dateiname wird automatisch generiert">
+              <button type="button" class="btn btn--icon btn--ghost filename-reset" id="btn-filename-reset" title="Automatisch generieren">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+              </button>
+            </div>
+            <p class="form-hint" id="filename-hint">Automatisch generiert basierend auf Kategorie und Datum</p>
           </div>
 
           <div class="edit__actions">

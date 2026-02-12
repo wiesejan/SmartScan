@@ -39,6 +39,9 @@ import {
   updateEditPreviewMultipage,
   showSuccessMultipage,
   updateFilenamePreview,
+  getFilename,
+  setFilenameManuallyEdited,
+  resetFilenameToAuto,
   state
 } from './ui.js';
 
@@ -186,6 +189,16 @@ function bindEvents() {
   el.editSender.addEventListener('input', updateFilenamePreview);
   el.editName.addEventListener('input', updateFilenamePreview);
   el.editAmount.addEventListener('input', updateFilenamePreview);
+
+  // Filename manual editing
+  if (el.filenameInput) {
+    el.filenameInput.addEventListener('input', () => {
+      setFilenameManuallyEdited(true);
+    });
+  }
+  if (el.btnFilenameReset) {
+    el.btnFilenameReset.addEventListener('click', resetFilenameToAuto);
+  }
 
   // Success screen
   el.btnScanAnother.addEventListener('click', () => startScan(false));
@@ -1090,30 +1103,11 @@ async function handleSave(e) {
   updateProcessingStatus('PDF wird erstellt...', 'Dokument wird konvertiert');
 
   try {
-    // Generate filename with new convention: YYYYMMDD_Dokumenttyp_Korrespondent_Beschreibung_Attribute.pdf
+    // Get category for folder path
     const category = getCategoryById(formData.category) || { id: 'other', label: 'Sonstiges', folder: 'Sonstiges' };
 
-    // Format date as YYYYMMDD
-    const dateFormatted = (formData.date || new Date().toISOString().split('T')[0]).replace(/-/g, '');
-
-    // Build filename parts
-    let filenameParts = [dateFormatted, category.label || 'Dokument'];
-
-    if (formData.sender) {
-      filenameParts.push(sanitizeFilename(formData.sender));
-    }
-
-    if (formData.name) {
-      filenameParts.push(sanitizeFilename(formData.name));
-    }
-
-    // Add amount for invoices/receipts
-    if (formData.amount && (formData.category === 'invoice' || formData.category === 'receipt')) {
-      const cleanAmount = formData.amount.replace(/[€\s]/g, '').replace(',', '-');
-      filenameParts.push(cleanAmount + 'EUR');
-    }
-
-    const filename = filenameParts.join('_') + '.pdf';
+    // Get filename (either manual or auto-generated)
+    const filename = sanitizeFilename(getFilename());
     const folder = `${CONFIG.dropbox.baseFolder}/${category.folder}`;
     const path = `${folder}/${filename}`;
 
