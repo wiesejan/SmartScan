@@ -64,12 +64,10 @@ export const CONFIG = {
     baseFolder: '/SmartScan' // Root folder for all uploads
   },
 
-  // OCR configuration (PaddleOCR via client-side-ocr)
+  // OCR configuration (Tesseract.js)
   ocr: {
-    language: 'de', // German (PaddleOCR language code)
-    modelVersion: 'PP-OCRv4', // PP-OCRv4 or PP-OCRv5
-    modelType: 'mobile', // 'mobile' (faster) or 'server' (more accurate)
-    cdnUrl: 'https://unpkg.com/client-side-ocr@latest/dist/index.mjs'
+    language: 'deu', // German
+    cacheMethod: 'indexedDB'
   },
 
   // Classifier configuration

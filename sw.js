@@ -3,7 +3,7 @@
  * Handles caching and offline functionality
  */
 
-const CACHE_NAME = 'smartscan-v19';
+const CACHE_NAME = 'smartscan-v20';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -24,8 +24,8 @@ const STATIC_ASSETS = [
 ];
 
 const EXTERNAL_ASSETS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
-  // PaddleOCR models are loaded dynamically and cached by the library itself
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
 ];
 
 // Install event - cache static assets
