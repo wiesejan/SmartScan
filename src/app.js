@@ -19,7 +19,6 @@ import {
   updateProcessingProgress,
   updateClassificationConfidence,
   showCategoryAlternatives,
-  updateModelsStatus,
   setCurrentImage,
   setMetadata,
   getFormData,
@@ -126,12 +125,6 @@ async function initializeAPIs() {
   loadSettingsForm({
     dropboxClientId: dropboxAPI.getClientId() || ''
   });
-
-  // Check if models were preloaded
-  const modelsLoaded = localStorage.getItem(CONFIG.storage.modelsLoaded);
-  if (modelsLoaded) {
-    updateModelsStatus('Modelle bereit (gecached)');
-  }
 }
 
 /**
@@ -218,7 +211,6 @@ function bindEvents() {
   // Save settings on input change and blur
   el.dropboxClientId.addEventListener('change', saveSettings);
   el.dropboxClientId.addEventListener('blur', saveSettings);
-  el.btnPreloadModels.addEventListener('click', preloadModels);
 
   // Logo click returns home
   document.getElementById('logo').addEventListener('click', (e) => {
@@ -1336,42 +1328,6 @@ function saveSettings() {
 }
 
 /**
- * Preload OCR and classifier models
- */
-async function preloadModels() {
-  const el = getElements();
-  el.btnPreloadModels.disabled = true;
-  updateModelsStatus('Modelle werden geladen...');
-
-  try {
-    // Initialize OCR
-    await ocrService.init((percent, status) => {
-      updateModelsStatus(`OCR: ${status} (${Math.round(percent)}%)`);
-    });
-
-    // Initialize classifier
-    await classifier.init({
-      useML: CONFIG.classifier.useML,
-      onProgress: (percent, status) => {
-        updateModelsStatus(`Klassifizierer: ${status} (${Math.round(percent)}%)`);
-      }
-    });
-
-    // Mark as loaded
-    localStorage.setItem(CONFIG.storage.modelsLoaded, 'true');
-    updateModelsStatus('Modelle bereit (gecached)');
-    showToast('Modelle erfolgreich geladen', 'success');
-
-  } catch (error) {
-    console.error('Model preload error:', error);
-    updateModelsStatus('Fehler beim Laden: ' + error.message);
-    showToast('Modelle konnten nicht geladen werden', 'error');
-  } finally {
-    el.btnPreloadModels.disabled = false;
-  }
-}
-
-/**
  * Clear all stored data
  */
 function clearAllData() {
@@ -1410,7 +1366,6 @@ function clearAllData() {
 
   // Reset UI
   updateAuthStatus(false);
-  updateModelsStatus('Modelle werden bei Bedarf geladen');
   loadSettingsForm({ dropboxClientId: '' });
   closeSettings();
 

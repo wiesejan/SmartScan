@@ -101,8 +101,7 @@ export const CONFIG = {
     dropboxRefreshToken: 'smartscan_dropbox_refresh',
     codeVerifier: 'smartscan_code_verifier',
     dropboxClientId: 'smartscan_dropbox_client_id',
-    settings: 'smartscan_settings',
-    modelsLoaded: 'smartscan_models_loaded'
+    settings: 'smartscan_settings'
   }
 };
 

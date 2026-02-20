@@ -148,8 +148,6 @@ export function initUI() {
     dropboxClientId: document.getElementById('settings-dropbox-client-id'),
     btnDropboxConnect: document.getElementById('btn-dropbox-connect'),
     btnDropboxDisconnect: document.getElementById('btn-dropbox-disconnect'),
-    btnPreloadModels: document.getElementById('btn-preload-models'),
-    modelsStatus: document.getElementById('models-status'),
     btnClearData: document.getElementById('btn-clear-data'),
 
     // Classification info
@@ -303,16 +301,6 @@ export function showCategoryAlternatives(alternatives) {
     });
     elements.alternativesList.appendChild(btn);
   });
-}
-
-/**
- * Update models status in settings
- * @param {string} status - Status message
- */
-export function updateModelsStatus(status) {
-  if (elements.modelsStatus) {
-    elements.modelsStatus.textContent = status;
-  }
 }
 
 /**
