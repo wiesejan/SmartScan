@@ -1396,11 +1396,12 @@ function clearAllData() {
     });
   }
 
-  // Clear IndexedDB (Tesseract cache)
+  // Clear IndexedDB (OCR model cache)
   if ('indexedDB' in window) {
     indexedDB.databases().then(dbs => {
       dbs.forEach(db => {
-        if (db.name && db.name.includes('tesseract')) {
+        // Clear OCR-related caches (PaddleOCR, ONNX, etc.)
+        if (db.name && (db.name.includes('ocr') || db.name.includes('onnx') || db.name.includes('paddle'))) {
           indexedDB.deleteDatabase(db.name);
         }
       });

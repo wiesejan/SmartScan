@@ -3,7 +3,7 @@
  * Handles caching and offline functionality
  */
 
-const CACHE_NAME = 'smartscan-v17';
+const CACHE_NAME = 'smartscan-v18';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -24,8 +24,8 @@ const STATIC_ASSETS = [
 ];
 
 const EXTERNAL_ASSETS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  // PaddleOCR models are loaded dynamically and cached by the library itself
 ];
 
 // Install event - cache static assets
@@ -90,9 +90,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache Tesseract language data and worker files
+  // Cache OCR model files and CDN resources (PaddleOCR, ONNX Runtime)
   if (url.hostname.includes('cdn.jsdelivr.net') ||
-      url.hostname.includes('tessdata.projectnaptha.com')) {
+      url.hostname.includes('unpkg.com') ||
+      url.hostname.includes('onnxruntime')) {
     event.respondWith(
       caches.match(request)
         .then((cachedResponse) => {
