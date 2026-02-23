@@ -99,6 +99,26 @@
           </button>
         </div>
 
+        <!-- Dropbox Connection Prompt (shown when not connected) -->
+        <div class="home__connect" id="home-connect-prompt">
+          <div class="home__connect-card">
+            <svg class="home__connect-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <p class="home__connect-text">Verbinde SmartScan mit Dropbox, um Dokumente zu speichern</p>
+            <button type="button" class="btn btn--primary" id="btn-home-connect">
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+              Mit Dropbox verbinden
+            </button>
+          </div>
+        </div>
+
         <p class="text-muted text-center" id="auth-status" style="margin-top: auto; padding-top: var(--spacing-lg);">
           Nicht mit Dropbox verbunden
         </p>
@@ -432,17 +452,34 @@
       <div class="settings-panel__content">
         <div class="settings-section">
           <h3 class="settings-section__title">Dropbox</h3>
-          <div class="form-group">
-            <label class="form-label" for="settings-dropbox-client-id">Client ID</label>
-            <input type="text" class="form-input" id="settings-dropbox-client-id" placeholder="Dropbox App Client ID">
-            <p class="form-hint">Erstelle eine App unter <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener">Dropbox Developers</a></p>
+          <div class="dropbox-status" id="dropbox-status">
+            <div class="dropbox-status__disconnected" id="dropbox-disconnected">
+              <p class="dropbox-status__text">Nicht verbunden</p>
+              <button type="button" class="btn btn--primary" id="btn-dropbox-connect">
+                <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                  <path d="M2 17l10 5 10-5"/>
+                  <path d="M2 12l10 5 10-5"/>
+                </svg>
+                Mit Dropbox verbinden
+              </button>
+            </div>
+            <div class="dropbox-status__connected hidden" id="dropbox-connected">
+              <div class="dropbox-status__info">
+                <svg class="dropbox-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <div>
+                  <p class="dropbox-status__text dropbox-status__text--connected">Verbunden</p>
+                  <p class="dropbox-status__account" id="dropbox-account-name">-</p>
+                </div>
+              </div>
+              <button type="button" class="btn btn--secondary btn--small" id="btn-dropbox-disconnect">
+                Trennen
+              </button>
+            </div>
           </div>
-          <button type="button" class="btn btn--primary" id="btn-dropbox-connect">
-            Mit Dropbox verbinden
-          </button>
-          <button type="button" class="btn btn--secondary hidden" id="btn-dropbox-disconnect">
-            Verbindung trennen
-          </button>
         </div>
 
         <div class="settings-section">

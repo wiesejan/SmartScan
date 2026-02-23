@@ -25,8 +25,6 @@ import {
   showSuccess,
   openSettings,
   closeSettings,
-  loadSettingsForm,
-  getSettingsFormData,
   showToast,
   setSaveButtonEnabled,
   getElements,
@@ -118,13 +116,19 @@ async function initializeAPIs() {
     console.warn('PDF converter init warning:', error);
   }
 
-  // Update UI with auth status (no Claude needed anymore)
-  updateAuthStatus(dropboxAPI.isAuthenticated());
-
-  // Load saved settings into form
-  loadSettingsForm({
-    dropboxClientId: dropboxAPI.getClientId() || ''
-  });
+  // Update UI with auth status and fetch account info if authenticated
+  if (dropboxAPI.isAuthenticated()) {
+    try {
+      const accountInfo = await dropboxAPI.getAccountInfo();
+      const accountName = accountInfo.name?.display_name || accountInfo.email || 'Verbunden';
+      updateAuthStatus(true, accountName);
+    } catch (error) {
+      console.warn('Could not fetch account info:', error);
+      updateAuthStatus(true);
+    }
+  } else {
+    updateAuthStatus(false);
+  }
 }
 
 /**
@@ -208,9 +212,10 @@ function bindEvents() {
   el.btnDropboxDisconnect.addEventListener('click', disconnectDropbox);
   el.btnClearData.addEventListener('click', clearAllData);
 
-  // Save settings on input change and blur
-  el.dropboxClientId.addEventListener('change', saveSettings);
-  el.dropboxClientId.addEventListener('blur', saveSettings);
+  // Home screen connect button
+  if (el.btnHomeConnect) {
+    el.btnHomeConnect.addEventListener('click', connectDropbox);
+  }
 
   // Logo click returns home
   document.getElementById('logo').addEventListener('click', (e) => {
@@ -1287,15 +1292,11 @@ async function handleSave(e) {
  * Connect to Dropbox
  */
 async function connectDropbox() {
-  const settings = getSettingsFormData();
-
-  if (!settings.dropboxClientId) {
-    showToast('Bitte Dropbox Client ID eingeben', 'warning');
+  // Check if Dropbox is configured (has Client ID)
+  if (!dropboxAPI.isConfigured()) {
+    showToast('Dropbox ist nicht konfiguriert. Bitte Client ID in config.js setzen.', 'error');
     return;
   }
-
-  // Save client ID first
-  dropboxAPI.setClientId(settings.dropboxClientId);
 
   try {
     await dropboxAPI.authorize();
@@ -1310,21 +1311,8 @@ async function connectDropbox() {
  */
 function disconnectDropbox() {
   dropboxAPI.clearTokens();
-  updateAuthStatus(false, claudeAPI.isConfigured());
+  updateAuthStatus(false);
   showToast('Dropbox-Verbindung getrennt', 'info');
-}
-
-/**
- * Save settings
- */
-function saveSettings() {
-  const settings = getSettingsFormData();
-
-  if (settings.dropboxClientId) {
-    dropboxAPI.setClientId(settings.dropboxClientId);
-  }
-
-  updateAuthStatus(dropboxAPI.isAuthenticated(), claudeAPI.isConfigured());
 }
 
 /**
@@ -1366,7 +1354,6 @@ function clearAllData() {
 
   // Reset UI
   updateAuthStatus(false);
-  loadSettingsForm({ dropboxClientId: '' });
   closeSettings();
 
   showToast('Alle Daten gelöscht', 'success');

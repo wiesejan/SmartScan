@@ -90,15 +90,20 @@ class DropboxAPI {
    * @returns {string|null}
    */
   getClientId() {
-    return localStorage.getItem(CONFIG.storage.dropboxClientId) || CONFIG.dropbox.clientId;
+    const clientId = CONFIG.dropbox.clientId;
+    // Check if Client ID is configured (not placeholder)
+    if (!clientId || clientId === 'YOUR_DROPBOX_APP_KEY') {
+      return null;
+    }
+    return clientId;
   }
 
   /**
-   * Set the Dropbox Client ID
-   * @param {string} clientId
+   * Check if Dropbox is properly configured
+   * @returns {boolean}
    */
-  setClientId(clientId) {
-    localStorage.setItem(CONFIG.storage.dropboxClientId, clientId);
+  isConfigured() {
+    return !!this.getClientId();
   }
 
   /**

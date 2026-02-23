@@ -145,10 +145,16 @@ export function initUI() {
     settingsPanel: document.getElementById('settings-panel'),
     settingsOverlay: document.getElementById('settings-overlay'),
     settingsClose: document.getElementById('settings-close'),
-    dropboxClientId: document.getElementById('settings-dropbox-client-id'),
     btnDropboxConnect: document.getElementById('btn-dropbox-connect'),
     btnDropboxDisconnect: document.getElementById('btn-dropbox-disconnect'),
     btnClearData: document.getElementById('btn-clear-data'),
+
+    // Dropbox connection UI
+    homeConnectPrompt: document.getElementById('home-connect-prompt'),
+    btnHomeConnect: document.getElementById('btn-home-connect'),
+    dropboxDisconnected: document.getElementById('dropbox-disconnected'),
+    dropboxConnected: document.getElementById('dropbox-connected'),
+    dropboxAccountName: document.getElementById('dropbox-account-name'),
 
     // Classification info
     classificationInfo: document.getElementById('classification-info'),
@@ -187,32 +193,40 @@ export function showScreen(screenName) {
 /**
  * Update the home screen auth status
  * @param {boolean} isDropboxAuth
- * @param {boolean} modelsReady - Whether OCR/classifier models are loaded
+ * @param {string} accountName - Dropbox account name (optional)
  */
-export function updateAuthStatus(isDropboxAuth, modelsReady = true) {
+export function updateAuthStatus(isDropboxAuth, accountName = null) {
   updateState({
     isAuthenticated: isDropboxAuth,
     isClaudeConfigured: true // No longer needed, always true for local processing
   });
 
   const statusEl = elements.authStatus;
-  const messages = [];
 
-  if (!isDropboxAuth) {
-    messages.push('Dropbox nicht verbunden');
+  // Update home screen connection prompt
+  if (elements.homeConnectPrompt) {
+    elements.homeConnectPrompt.classList.toggle('hidden', isDropboxAuth);
   }
 
-  if (messages.length === 0) {
+  // Update status text
+  if (isDropboxAuth) {
     statusEl.textContent = 'Bereit zum Scannen';
     statusEl.style.color = 'var(--color-success)';
   } else {
-    statusEl.textContent = messages.join(' • ');
+    statusEl.textContent = 'Dropbox nicht verbunden';
     statusEl.style.color = '';
   }
 
-  // Update connect/disconnect buttons
-  elements.btnDropboxConnect.classList.toggle('hidden', isDropboxAuth);
-  elements.btnDropboxDisconnect.classList.toggle('hidden', !isDropboxAuth);
+  // Update settings panel dropbox status
+  if (elements.dropboxDisconnected) {
+    elements.dropboxDisconnected.classList.toggle('hidden', isDropboxAuth);
+  }
+  if (elements.dropboxConnected) {
+    elements.dropboxConnected.classList.toggle('hidden', !isDropboxAuth);
+  }
+  if (elements.dropboxAccountName && accountName) {
+    elements.dropboxAccountName.textContent = accountName;
+  }
 }
 
 /**
@@ -513,25 +527,6 @@ export function closeSettings() {
   elements.settingsOverlay.classList.remove('open');
 }
 
-/**
- * Load settings values into form
- * @param {Object} settings - { dropboxClientId }
- */
-export function loadSettingsForm(settings) {
-  if (settings.dropboxClientId) {
-    elements.dropboxClientId.value = settings.dropboxClientId;
-  }
-}
-
-/**
- * Get settings form values
- * @returns {Object}
- */
-export function getSettingsFormData() {
-  return {
-    dropboxClientId: elements.dropboxClientId.value.trim()
-  };
-}
 
 /**
  * Show a toast notification

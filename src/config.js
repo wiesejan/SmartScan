@@ -54,8 +54,10 @@ export const CONFIG = {
   ],
 
   // Dropbox OAuth configuration
+  // To set up: Create an app at https://www.dropbox.com/developers/apps
+  // Choose "Scoped access" and "Full Dropbox", then copy the App key below
   dropbox: {
-    clientId: '', // Set via UI or environment
+    clientId: 'YOUR_DROPBOX_APP_KEY', // Replace with your Dropbox App key
     redirectUri: '', // Auto-detected from current URL
     authEndpoint: 'https://www.dropbox.com/oauth2/authorize',
     tokenEndpoint: 'https://api.dropboxapi.com/oauth2/token',
@@ -98,7 +100,6 @@ export const CONFIG = {
     dropboxToken: 'smartscan_dropbox_token',
     dropboxRefreshToken: 'smartscan_dropbox_refresh',
     codeVerifier: 'smartscan_code_verifier',
-    dropboxClientId: 'smartscan_dropbox_client_id',
     settings: 'smartscan_settings'
   }
 };

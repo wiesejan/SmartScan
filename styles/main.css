@@ -1512,6 +1512,107 @@ body {
 }
 
 /* ========================================
+   Home Connect Prompt
+   ======================================== */
+
+.home__connect {
+  margin-top: var(--spacing-lg);
+  padding: 0 var(--spacing-md);
+}
+
+.home__connect-card {
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color-strong);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.home__connect-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--color-primary);
+}
+
+.home__connect-text {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 280px;
+}
+
+.home__connect.hidden {
+  display: none;
+}
+
+/* ========================================
+   Dropbox Status (Settings)
+   ======================================== */
+
+.dropbox-status {
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.dropbox-status__disconnected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  text-align: center;
+}
+
+.dropbox-status__disconnected .dropbox-status__text {
+  color: var(--text-secondary);
+}
+
+.dropbox-status__connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.dropbox-status__info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.dropbox-status__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.dropbox-status__text--connected {
+  color: var(--color-success);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.dropbox-status__account {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.dropbox-status__connected.hidden,
+.dropbox-status__disconnected.hidden {
+  display: none;
+}
+
+.btn--small {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.85rem;
+}
+
+/* ========================================
    Print Styles
    ======================================== */
 
