@@ -14,50 +14,36 @@ export const CONFIG = {
   // Document categories for classification
   categories: [
     // Finanzen
-    { id: 'fin-gehalt', label: 'Gehaltsabrechnung', folder: 'Finanzen/Gehaltsabrechnung' },
-    { id: 'fin-steuer', label: 'Steuerdokumente', folder: 'Finanzen/Steuerdokumente' },
-    { id: 'fin-bauspar', label: 'Bausparvertrag', folder: 'Finanzen/Bausparvertraege' },
-    { id: 'fin-dkb', label: 'DKB', folder: 'Finanzen/DKB' },
-    { id: 'fin-haspa', label: 'Haspa', folder: 'Finanzen/Haspa' },
-    { id: 'fin-depot', label: 'Wertpapierdepot', folder: 'Finanzen/Wertpapierdepots' },
-    { id: 'fin-bav', label: 'Betriebliche Altersvorsorge', folder: 'Finanzen/Betriebliche-Altersvorsorge' },
-    { id: 'fin-kreditkarte', label: 'Kreditkartenabrechnung', folder: 'Finanzen/Kreditkartenabrechnungen' },
-    // Rechnungen
-    { id: 'rechnung', label: 'Rechnung', folder: 'Rechnungen' },
+    { id: 'payslip',          label: 'Gehaltsabrechnung',       folder: 'Finanzen/Gehaltsabrechnung' },
+    { id: 'bank',             label: 'Bankdokument',            folder: 'Finanzen/Bank' },
+    { id: 'investment',       label: 'Depot / Wertpapiere',     folder: 'Finanzen/Investment' },
+    { id: 'tax',              label: 'Steuerdokument',          folder: 'Finanzen/Steuer' },
+    { id: 'savings',          label: 'Spar- & Bausparvertrag',  folder: 'Finanzen/Sparvertraege' },
+    // Rechnungen & Belege
+    { id: 'invoice',          label: 'Rechnung',                folder: 'Rechnungen' },
+    { id: 'receipt',          label: 'Kassenbeleg / Quittung',  folder: 'Belege' },
     // Verträge
-    { id: 'vertrag-erdgas', label: 'Erdgas', folder: 'Vertraege/Erdgas' },
-    { id: 'vertrag-mobilfunk', label: 'Mobilfunkvertrag', folder: 'Vertraege/Mobilfunk' },
-    { id: 'vertrag-internet', label: 'Internet + Telefon', folder: 'Vertraege/Internet-Telefon' },
-    { id: 'vertrag-strom', label: 'Strom', folder: 'Vertraege/Strom' },
+    { id: 'contract-utility', label: 'Strom / Gas / Wasser',   folder: 'Vertraege/Versorgung' },
+    { id: 'contract-telecom', label: 'Mobilfunk / Internet',    folder: 'Vertraege/Telekommunikation' },
+    { id: 'contract-general', label: 'Sonstiger Vertrag',       folder: 'Vertraege/Sonstige' },
     // Versicherungen
-    { id: 'vers-auto', label: 'Auto + E-Scooter', folder: 'Versicherungen/Auto-E-Scooter' },
-    { id: 'vers-bu', label: 'Berufsunfähigkeit', folder: 'Versicherungen/Berufsunfaehigkeit' },
-    { id: 'vers-rente', label: 'Deutsche Rentenversicherung', folder: 'Versicherungen/Deutsche-Rentenversicherung' },
-    { id: 'vers-haftpflicht', label: 'Haftpflicht', folder: 'Versicherungen/Haftpflicht' },
-    { id: 'vers-hausrat', label: 'Hausrat', folder: 'Versicherungen/Hausrat' },
-    { id: 'vers-kranken', label: 'Krankenversicherung', folder: 'Versicherungen/Krankenversicherung' },
-    { id: 'vers-kuendigung', label: 'Kündigung Versicherung', folder: 'Versicherungen/Kuendigungen' },
-    { id: 'vers-rechtsschutz', label: 'Rechtsschutz', folder: 'Versicherungen/Rechtsschutz' },
-    { id: 'vers-reise', label: 'Reiseversicherung', folder: 'Versicherungen/Reiseversicherung' },
-    { id: 'vers-risiko-jan', label: 'Risiko-Leben Jan', folder: 'Versicherungen/Risiko-Leben-Jan' },
-    { id: 'vers-wohngebaeude', label: 'Wohngebäude', folder: 'Versicherungen/Wohngebaeude' },
-    { id: 'vers-zahn', label: 'Zahnzusatz', folder: 'Versicherungen/Zahnzusatz' },
-    // Medizin
-    { id: 'medizin', label: 'Medizinisches Dokument', folder: 'Medizin' },
-    // Ehe
-    { id: 'ehe', label: 'Ehedokument', folder: 'Ehedokumente' },
-    // Kinder
-    { id: 'kind-salome', label: 'Salomé', folder: 'Kinder/Salome' },
-    { id: 'kind-david', label: 'David', folder: 'Kinder/David' },
+    { id: 'insurance-health',    label: 'Krankenversicherung',  folder: 'Versicherungen/Kranken' },
+    { id: 'insurance-vehicle',   label: 'KFZ-Versicherung',     folder: 'Versicherungen/KFZ' },
+    { id: 'insurance-liability', label: 'Haftpflicht',          folder: 'Versicherungen/Haftpflicht' },
+    { id: 'insurance-other',     label: 'Sonstige Versicherung',folder: 'Versicherungen/Sonstige' },
+    // Weitere
+    { id: 'medical',  label: 'Medizinisches Dokument', folder: 'Medizin' },
+    { id: 'official', label: 'Behördendokument',        folder: 'Behoerden' },
     // Sonstiges
     { id: 'other', label: 'Sonstiges', folder: 'Sonstiges' }
   ],
 
   // Dropbox OAuth configuration
-  // To set up: Create an app at https://www.dropbox.com/developers/apps
-  // Choose "Scoped access" and "Full Dropbox", then copy the App key below
+  // App owner setup: create one app at https://www.dropbox.com/developers/apps
+  // Choose "Scoped access" → "Full Dropbox", copy the App key below.
+  // End users only need to click "Mit Dropbox verbinden" — no developer setup required.
   dropbox: {
-    clientId: 'YOUR_DROPBOX_APP_KEY', // Replace with your Dropbox App key
+    clientId: 'YOUR_DROPBOX_APP_KEY', // Set once by the app owner (or via Settings UI)
     redirectUri: '', // Auto-detected from current URL
     authEndpoint: 'https://www.dropbox.com/oauth2/authorize',
     tokenEndpoint: 'https://api.dropboxapi.com/oauth2/token',
@@ -65,6 +51,17 @@ export const CONFIG = {
     contentEndpoint: 'https://content.dropboxapi.com/2',
     baseFolder: '/SmartScan' // Root folder for all uploads
   },
+
+  // Nextcloud WebDAV configuration
+  // Users enter their own server URL, username, and an app password
+  // (generate app passwords in Nextcloud: Settings → Security → App passwords)
+  nextcloud: {
+    baseFolder: '/SmartScan' // Root folder inside the user's Nextcloud
+  },
+
+  // Storage target: 'dropbox' | 'nextcloud' | 'both'
+  // Can be overridden per-user via localStorage key 'smartscan_storage_target'
+  storageTarget: 'dropbox',
 
   // OCR configuration (Tesseract.js)
   ocr: {
@@ -99,7 +96,12 @@ export const CONFIG = {
   storage: {
     dropboxToken: 'smartscan_dropbox_token',
     dropboxRefreshToken: 'smartscan_dropbox_refresh',
+    dropboxClientId: 'smartscan_dropbox_client_id', // Optional override of config clientId
     codeVerifier: 'smartscan_code_verifier',
+    nextcloudUrl: 'smartscan_nextcloud_url',
+    nextcloudUsername: 'smartscan_nextcloud_username',
+    nextcloudPassword: 'smartscan_nextcloud_password',
+    storageTarget: 'smartscan_storage_target',
     settings: 'smartscan_settings'
   }
 };

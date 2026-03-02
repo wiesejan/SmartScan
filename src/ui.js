@@ -10,8 +10,8 @@ import { CONFIG, getCategoryById } from './config.js';
  */
 export const state = {
   screen: 'home',
-  isAuthenticated: false,
-  isClaudeConfigured: false,
+  isAuthenticated: false,        // Dropbox connected
+  isNextcloudConnected: false,   // Nextcloud connected
   currentImage: null, // { blob, base64, dataUrl }
   currentMetadata: null, // { category, date, name, sender, amount, confidence }
   processingStatus: 'idle', // 'idle', 'capturing', 'analyzing', 'uploading'
@@ -155,6 +155,28 @@ export function initUI() {
     dropboxDisconnected: document.getElementById('dropbox-disconnected'),
     dropboxConnected: document.getElementById('dropbox-connected'),
     dropboxAccountName: document.getElementById('dropbox-account-name'),
+    dropboxAppKeySection: document.getElementById('dropbox-appkey-section'),
+    dropboxClientIdInput: document.getElementById('dropbox-client-id-input'),
+    btnDropboxSaveKey: document.getElementById('btn-dropbox-save-key'),
+
+    // Nextcloud connection UI
+    nextcloudDisconnected: document.getElementById('nextcloud-disconnected'),
+    nextcloudConnected: document.getElementById('nextcloud-connected'),
+    nextcloudAccountName: document.getElementById('nextcloud-account-name'),
+    nextcloudUrl: document.getElementById('nextcloud-url'),
+    nextcloudUsername: document.getElementById('nextcloud-username'),
+    nextcloudPassword: document.getElementById('nextcloud-password'),
+    btnNextcloudTest: document.getElementById('btn-nextcloud-test'),
+    btnNextcloudSave: document.getElementById('btn-nextcloud-save'),
+    btnNextcloudDisconnect: document.getElementById('btn-nextcloud-disconnect'),
+
+    // Storage target selector
+    storageTargetSection: document.getElementById('storage-target-section'),
+    storageTargetSelect: document.getElementById('storage-target-select'),
+
+    // Success screen
+    successMessage: document.getElementById('success-message'),
+    successStorage: document.getElementById('success-storage'),
 
     // Classification info
     classificationInfo: document.getElementById('classification-info'),
@@ -191,30 +213,17 @@ export function showScreen(screenName) {
 }
 
 /**
- * Update the home screen auth status
+ * Update the home screen auth status and Dropbox settings panel.
  * @param {boolean} isDropboxAuth
- * @param {string} accountName - Dropbox account name (optional)
+ * @param {string|null} accountName - Dropbox account name
+ * @param {boolean} isDropboxConfigured - Whether a Client ID is available
  */
-export function updateAuthStatus(isDropboxAuth, accountName = null) {
-  updateState({
-    isAuthenticated: isDropboxAuth,
-    isClaudeConfigured: true // No longer needed, always true for local processing
-  });
+export function updateAuthStatus(isDropboxAuth, accountName = null, isDropboxConfigured = true) {
+  updateState({ isAuthenticated: isDropboxAuth });
 
-  const statusEl = elements.authStatus;
-
-  // Update home screen connection prompt
-  if (elements.homeConnectPrompt) {
-    elements.homeConnectPrompt.classList.toggle('hidden', isDropboxAuth);
-  }
-
-  // Update status text
-  if (isDropboxAuth) {
-    statusEl.textContent = 'Bereit zum Scannen';
-    statusEl.style.color = 'var(--color-success)';
-  } else {
-    statusEl.textContent = 'Dropbox nicht verbunden';
-    statusEl.style.color = '';
+  // Show/hide the App Key input depending on whether Dropbox is configured
+  if (elements.dropboxAppKeySection) {
+    elements.dropboxAppKeySection.classList.toggle('hidden', isDropboxConfigured);
   }
 
   // Update settings panel dropbox status
@@ -226,6 +235,75 @@ export function updateAuthStatus(isDropboxAuth, accountName = null) {
   }
   if (elements.dropboxAccountName && accountName) {
     elements.dropboxAccountName.textContent = accountName;
+  }
+
+  // Refresh the home screen ready status
+  refreshHomeStatus();
+}
+
+/**
+ * Update the Nextcloud settings panel.
+ * @param {boolean} isConnected
+ * @param {string|null} accountName
+ */
+export function updateNextcloudStatus(isConnected, accountName = null) {
+  if (elements.nextcloudDisconnected) {
+    elements.nextcloudDisconnected.classList.toggle('hidden', isConnected);
+  }
+  if (elements.nextcloudConnected) {
+    elements.nextcloudConnected.classList.toggle('hidden', !isConnected);
+  }
+  if (elements.nextcloudAccountName && accountName) {
+    elements.nextcloudAccountName.textContent = accountName;
+  }
+
+  // Refresh the home screen ready status
+  refreshHomeStatus();
+}
+
+/**
+ * Show or hide the storage target selector based on how many storages are connected.
+ * @param {boolean} dropboxConnected
+ * @param {boolean} nextcloudConnected
+ * @param {string} currentTarget - 'dropbox' | 'nextcloud' | 'both'
+ */
+export function updateStorageTargetUI(dropboxConnected, nextcloudConnected, currentTarget) {
+  const section = elements.storageTargetSection;
+  if (!section) return;
+
+  const bothAvailable = dropboxConnected && nextcloudConnected;
+  section.style.display = bothAvailable ? '' : 'none';
+
+  if (elements.storageTargetSelect) {
+    elements.storageTargetSelect.value = currentTarget;
+  }
+}
+
+/**
+ * Refresh home screen connection prompt and status text.
+ * Called whenever Dropbox or Nextcloud connection state changes.
+ */
+export function refreshHomeStatus() {
+  const isDropbox   = state.isAuthenticated;
+  const isNextcloud = state.isNextcloudConnected || false;
+  const anyConnected = isDropbox || isNextcloud;
+
+  if (elements.homeConnectPrompt) {
+    elements.homeConnectPrompt.classList.toggle('hidden', anyConnected);
+  }
+
+  const statusEl = elements.authStatus;
+  if (!statusEl) return;
+
+  if (anyConnected) {
+    const parts = [];
+    if (isDropbox)   parts.push('Dropbox');
+    if (isNextcloud) parts.push('Nextcloud');
+    statusEl.textContent = `Bereit zum Scannen (${parts.join(' & ')})`;
+    statusEl.style.color = 'var(--color-success)';
+  } else {
+    statusEl.textContent = 'Kein Cloud-Speicher verbunden';
+    statusEl.style.color = '';
   }
 }
 
@@ -291,24 +369,12 @@ export function showCategoryAlternatives(alternatives) {
   elements.categoryAlternatives.classList.remove('hidden');
   elements.alternativesList.innerHTML = '';
 
-  const categoryLabels = {
-    invoice: 'Rechnung',
-    receipt: 'Beleg',
-    contract: 'Vertrag',
-    letter: 'Brief',
-    tax: 'Steuer',
-    insurance: 'Versicherung',
-    medical: 'Medizinisch',
-    bank: 'Bank',
-    warranty: 'Garantie',
-    other: 'Sonstiges'
-  };
-
   alternatives.forEach(({ category, score }) => {
+    const catConfig = getCategoryById(category);
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'category-alternatives__item';
-    btn.textContent = categoryLabels[category] || category;
+    btn.textContent = catConfig?.label || category;
     btn.addEventListener('click', () => {
       elements.editCategory.value = category;
       elements.categoryAlternatives.classList.add('hidden');
@@ -426,7 +492,7 @@ export function generateAutoFilename() {
   if (name) {
     attributes.push(sanitizeForFilename(name));
   }
-  if (amount && category === 'rechnung') {
+  if (amount && (category === 'invoice' || category === 'receipt')) {
     attributes.push(amount.replace(/[€\s]/g, '').replace(',', '-') + 'EUR');
   }
 
@@ -497,7 +563,7 @@ export function getFilename() {
 
 /**
  * Show success screen with document details
- * @param {Object} details - { filename, folder, category }
+ * @param {Object} details - { filename, folder, category, storageLabel }
  */
 export function showSuccess(details) {
   updateState({ savedDocument: details });
@@ -507,6 +573,10 @@ export function showSuccess(details) {
 
   const category = getCategoryById(details.category);
   elements.successCategory.textContent = category?.label || details.category;
+
+  if (elements.successStorage) {
+    elements.successStorage.textContent = details.storageLabel || 'Cloud';
+  }
 
   showScreen('success');
 }
@@ -761,6 +831,10 @@ export function showSuccessMultipage(details) {
 
   const category = getCategoryById(details.category);
   elements.successCategory.textContent = category?.label || details.category;
+
+  if (elements.successStorage) {
+    elements.successStorage.textContent = details.storageLabel || 'Cloud';
+  }
 
   // Show page count if multi-page
   if (details.pageCount && details.pageCount > 1) {

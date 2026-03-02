@@ -86,16 +86,30 @@ class DropboxAPI {
   }
 
   /**
-   * Get the Dropbox Client ID
+   * Get the Dropbox Client ID.
+   * Priority: localStorage override → config.js hardcoded value.
    * @returns {string|null}
    */
   getClientId() {
+    // Allow app owner to set the key via Settings UI without touching code
+    const stored = localStorage.getItem(CONFIG.storage.dropboxClientId);
+    if (stored && stored.trim()) return stored.trim();
+
     const clientId = CONFIG.dropbox.clientId;
-    // Check if Client ID is configured (not placeholder)
-    if (!clientId || clientId === 'YOUR_DROPBOX_APP_KEY') {
-      return null;
-    }
+    if (!clientId || clientId === 'YOUR_DROPBOX_APP_KEY') return null;
     return clientId;
+  }
+
+  /**
+   * Persist a Client ID entered via the Settings UI
+   * @param {string} clientId
+   */
+  setClientId(clientId) {
+    if (clientId && clientId.trim()) {
+      localStorage.setItem(CONFIG.storage.dropboxClientId, clientId.trim());
+    } else {
+      localStorage.removeItem(CONFIG.storage.dropboxClientId);
+    }
   }
 
   /**

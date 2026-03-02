@@ -132,86 +132,65 @@ class DocumentClassifier {
     // Category scoring based on keywords
     const scores = {
       // Finanzen
-      'fin-gehalt': 0,
-      'fin-steuer': 0,
-      'fin-bauspar': 0,
-      'fin-dkb': 0,
-      'fin-haspa': 0,
-      'fin-depot': 0,
-      'fin-bav': 0,
-      'fin-kreditkarte': 0,
-      // Rechnungen
-      'rechnung': 0,
+      'payslip': 0,
+      'bank': 0,
+      'investment': 0,
+      'tax': 0,
+      'savings': 0,
+      // Rechnungen & Belege
+      'invoice': 0,
+      'receipt': 0,
       // Verträge
-      'vertrag-erdgas': 0,
-      'vertrag-mobilfunk': 0,
-      'vertrag-internet': 0,
-      'vertrag-strom': 0,
+      'contract-utility': 0,
+      'contract-telecom': 0,
+      'contract-general': 0,
       // Versicherungen
-      'vers-auto': 0,
-      'vers-bu': 0,
-      'vers-rente': 0,
-      'vers-haftpflicht': 0,
-      'vers-hausrat': 0,
-      'vers-kranken': 0,
-      'vers-kuendigung': 0,
-      'vers-rechtsschutz': 0,
-      'vers-reise': 0,
-      'vers-risiko-jan': 0,
-      'vers-wohngebaeude': 0,
-      'vers-zahn': 0,
+      'insurance-health': 0,
+      'insurance-vehicle': 0,
+      'insurance-liability': 0,
+      'insurance-other': 0,
       // Weitere
-      'medizin': 0,
-      'ehe': 0,
-      'kind-salome': 0,
-      'kind-david': 0,
+      'medical': 0,
+      'official': 0,
       'other': 0.1
     };
 
     // High-confidence keywords (strong indicators)
     const strongKeywords = {
       // Finanzen
-      'fin-gehalt': ['gehaltsabrechnung', 'entgeltabrechnung', 'lohnabrechnung', 'bruttolohn', 'nettolohn', 'arbeitgeber'],
-      'fin-steuer': ['finanzamt', 'steuerbescheid', 'einkommensteuer', 'steuernummer', 'elster', 'steuererklärung', 'lohnsteuer'],
-      'fin-bauspar': ['bausparkasse', 'bausparvertrag', 'schwäbisch hall', 'wüstenrot', 'bausparsumme'],
-      'fin-dkb': ['deutsche kreditbank', 'dkb'],
-      'fin-haspa': ['hamburger sparkasse', 'haspa'],
-      'fin-depot': ['wertpapierdepot', 'depot', 'aktien', 'wertpapier', 'fonds', 'etf', 'dividende'],
-      'fin-bav': ['betriebliche altersvorsorge', 'direktversicherung', 'pensionskasse', 'unterstützungskasse'],
-      'fin-kreditkarte': ['kreditkartenabrechnung', 'visa', 'mastercard', 'kreditkarte'],
-      // Rechnungen
-      'rechnung': ['rechnung', 'rechnungsnummer', 'rechnungsbetrag', 'zahlungsziel', 'invoice'],
+      'payslip': ['gehaltsabrechnung', 'entgeltabrechnung', 'lohnabrechnung', 'bruttolohn', 'nettolohn', 'lohnzettel', 'entgeltnachweis', 'gehaltsnachweis'],
+      'bank': ['kontoauszug', 'girokonto', 'kreditkartenabrechnung', 'visa', 'mastercard', 'kreditkarte', 'iban', 'bic', 'kontonummer', 'sparkasse', 'volksbank', 'commerzbank', 'postbank', 'deutsche bank'],
+      'investment': ['wertpapierdepot', 'depotauszug', 'aktien', 'wertpapier', 'fonds', 'etf', 'dividende', 'fondsanteil', 'depotnummer'],
+      'tax': ['finanzamt', 'steuerbescheid', 'einkommensteuer', 'steuernummer', 'elster', 'steuererklärung', 'lohnsteuer', 'umsatzsteuererklärung'],
+      'savings': ['bausparkasse', 'bausparvertrag', 'bausparsumme', 'betriebliche altersvorsorge', 'direktversicherung', 'pensionskasse', 'altersvorsorge', 'riester', 'rürup'],
+      // Rechnungen & Belege
+      'invoice': ['rechnung', 'rechnungsnummer', 'rechnungsbetrag', 'zahlungsziel', 'invoice', 'faktura', 'ust-id', 'umsatzsteuer-id'],
+      'receipt': ['quittung', 'kassenbon', 'kassenbeleg', 'kassierbon', 'bar bezahlt', 'barzahlung', 'bargeldzahlung'],
       // Verträge
-      'vertrag-erdgas': ['erdgas', 'gasvertrag', 'gaslieferung', 'stadtwerke'],
-      'vertrag-mobilfunk': ['mobilfunk', 'handyvertrag', 'telekom', 'vodafone', 'o2', 'congstar', 'simkarte'],
-      'vertrag-internet': ['internetvertrag', 'dsl', 'glasfaser', 'router', 'telefonanschluss'],
-      'vertrag-strom': ['stromvertrag', 'stromlieferung', 'kwh', 'stromzähler', 'vattenfall', 'eon'],
+      'contract-utility': ['erdgas', 'gasvertrag', 'gaslieferung', 'stromvertrag', 'stromlieferung', 'kwh', 'stromzähler', 'energieversorger', 'wasserversorgung', 'fernwärme'],
+      'contract-telecom': ['mobilfunkvertrag', 'handyvertrag', 'simkarte', 'dsl-vertrag', 'glasfaservertrag', 'internetvertrag', 'telefonanschluss', 'mobilfunk'],
+      'contract-general': ['mietvertrag', 'kaufvertrag', 'dienstleistungsvertrag', 'geschäftsbedingungen', 'vertragsunterlagen'],
       // Versicherungen
-      'vers-auto': ['kfz-versicherung', 'autoversicherung', 'haftpflicht kfz', 'teilkasko', 'vollkasko', 'e-scooter'],
-      'vers-bu': ['berufsunfähigkeit', 'bu-versicherung', 'erwerbsminderung'],
-      'vers-rente': ['deutsche rentenversicherung', 'rentenversicherung', 'rentenbescheid', 'versicherungsnummer'],
-      'vers-haftpflicht': ['privathaftpflicht', 'haftpflichtversicherung', 'personenschaden', 'sachschaden'],
-      'vers-hausrat': ['hausratversicherung', 'hausrat', 'einbruchdiebstahl', 'brandschaden'],
-      'vers-kranken': ['krankenversicherung', 'krankenkasse', 'tk', 'aok', 'barmer', 'dak', 'versichertenkarte'],
-      'vers-kuendigung': ['kündigung', 'kündigungsbestätigung', 'versicherung gekündigt'],
-      'vers-rechtsschutz': ['rechtsschutzversicherung', 'rechtsschutz', 'anwaltskosten'],
-      'vers-reise': ['reiserücktritt', 'reisekranken', 'auslandskranken', 'reiseversicherung'],
-      'vers-risiko-jan': ['risikolebensversicherung', 'todesfallleistung'],
-      'vers-wohngebaeude': ['wohngebäudeversicherung', 'gebäudeversicherung', 'elementarschaden'],
-      'vers-zahn': ['zahnzusatzversicherung', 'zahnersatz', 'zahnbehandlung'],
+      'insurance-health': ['krankenversicherung', 'krankenkasse', 'gesetzliche krankenversicherung', 'gkv', 'pkv', 'versichertenkarte', 'krankenversichertennummer'],
+      'insurance-vehicle': ['kfz-versicherung', 'autoversicherung', 'fahrzeugversicherung', 'teilkasko', 'vollkasko', 'kraftfahrzeughaftpflicht'],
+      'insurance-liability': ['privathaftpflicht', 'haftpflichtversicherung', 'personenschaden', 'sachschaden', 'haftpflichtschaden'],
+      'insurance-other': ['berufsunfähigkeitsversicherung', 'risikolebensversicherung', 'lebensversicherung', 'hausratversicherung', 'rechtsschutzversicherung', 'reiseversicherung', 'zahnzusatzversicherung', 'wohngebäudeversicherung', 'todesfallleistung', 'versicherungsschein', 'versicherungspolice'],
       // Weitere
-      'medizin': ['diagnose', 'patient', 'arztpraxis', 'rezept', 'befund', 'krankenhaus', 'überweisung'],
-      'ehe': ['heiratsurkunde', 'eheurkunde', 'standesamt', 'trauung', 'eheschließung'],
-      'kind-salome': ['salomé', 'salome'],
-      'kind-david': ['david']
+      'medical': ['diagnose', 'patient', 'arztpraxis', 'rezept', 'befund', 'krankenhaus', 'attest', 'laborergebnis', 'überweisung arzt', 'arztbrief'],
+      'official': ['ausweis', 'reisepass', 'geburtsurkunde', 'heiratsurkunde', 'standesamt', 'meldebescheinigung', 'abschlusszeugnis', 'immatrikulationsbescheinigung', 'aufenthaltstitel', 'personalausweis']
     };
 
     // Medium-confidence keywords
     const mediumKeywords = {
-      'fin-gehalt': ['gehalt', 'lohn', 'vergütung', 'sozialversicherung'],
-      'fin-steuer': ['steuer', 'abgabe', 'einkommen', 'bescheid'],
-      'rechnung': ['betrag', 'mwst', 'netto', 'brutto', 'fällig', 'zahlen'],
-      'medizin': ['arzt', 'medizin', 'behandlung', 'gesundheit', 'therapie', 'praxis']
+      'payslip': ['gehalt', 'lohn', 'vergütung', 'sozialversicherung', 'arbeitgeber', 'arbeitnehmer'],
+      'bank': ['bank', 'konto', 'guthaben', 'saldo', 'überweisung', 'zinsen'],
+      'tax': ['steuer', 'abgabe', 'einkommen', 'bescheid', 'finanzamt'],
+      'invoice': ['betrag', 'mwst', 'netto', 'brutto', 'fällig', 'zahlen', 'zahlbar', 'rechnungsdatum'],
+      'receipt': ['beleg', 'quittung', 'bar', 'bezahlt'],
+      'contract-general': ['vertrag', 'vereinbarung', 'unterschrift', 'laufzeit', 'kündigung'],
+      'insurance-other': ['versicherung', 'police', 'prämie', 'versicherungsbeitrag'],
+      'medical': ['arzt', 'medizin', 'behandlung', 'gesundheit', 'therapie', 'praxis'],
+      'official': ['bescheinigung', 'zeugnis', 'urkunde', 'amt', 'behörde']
     };
 
     // Score strong keywords (weight: 3)
@@ -234,7 +213,7 @@ class DocumentClassifier {
 
     // Bonus for extracted data patterns
     if (structuredData.amounts.length > 0) {
-      scores['rechnung'] += 1;
+      scores['invoice'] += 1;
     }
 
     // Find best category
@@ -276,19 +255,22 @@ class DocumentClassifier {
 
     // German category labels for zero-shot classification
     const candidateLabels = [
-      'Rechnung oder Zahlungsaufforderung',
       'Gehaltsabrechnung oder Lohnzettel',
+      'Kontoauszug oder Bankdokument',
+      'Depot oder Wertpapierhandel',
       'Steuerdokument oder Finanzamt',
+      'Rechnung oder Zahlungsaufforderung',
+      'Kassenbeleg oder Quittung',
       'Versicherungsdokument',
       'Medizinisches Dokument oder Arztbrief',
-      'Bankdokument oder Kontoauszug',
+      'Behördendokument oder Ausweis',
       'Vertrag oder Vereinbarung'
     ];
 
-    // Map ML results to new category IDs
+    // Map ML results to category IDs (same order as candidateLabels)
     const categoryMap = [
-      'rechnung', 'fin-gehalt', 'fin-steuer',
-      'vers-haftpflicht', 'medizin', 'fin-dkb', 'vertrag-strom'
+      'payslip', 'bank', 'investment', 'tax', 'invoice',
+      'receipt', 'insurance-other', 'medical', 'official', 'contract-general'
     ];
 
     try {
@@ -372,7 +354,7 @@ class DocumentClassifier {
     }
 
     // Add amount if it's an invoice
-    if (category === 'rechnung' && structuredData.amounts.length > 0) {
+    if (category === 'invoice' && structuredData.amounts.length > 0) {
       // Use the largest amount
       const amounts = structuredData.amounts.map(a => {
         const num = parseFloat(a.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));

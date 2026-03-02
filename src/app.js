@@ -6,6 +6,7 @@
 import { CONFIG, getCategoryById } from './config.js';
 import { sanitizeFilename, formatDate } from './utils.js';
 import { dropboxAPI } from './dropbox-api.js';
+import { nextcloudAPI } from './nextcloud-api.js';
 import { ocrService } from './ocrService.js';
 import { classifier } from './classifier.js';
 import { camera } from './camera.js';
@@ -15,6 +16,8 @@ import {
   initUI,
   showScreen,
   updateAuthStatus,
+  updateNextcloudStatus,
+  updateStorageTargetUI,
   updateProcessingStatus,
   updateProcessingProgress,
   updateClassificationConfidence,
@@ -39,7 +42,8 @@ import {
   getFilename,
   setFilenameManuallyEdited,
   resetFilenameToAuto,
-  state
+  state,
+  updateState
 } from './ui.js';
 
 /**
@@ -101,7 +105,7 @@ async function registerServiceWorker() {
  * Initialize API clients
  */
 async function initializeAPIs() {
-  // Initialize Dropbox
+  // Initialize Dropbox OAuth callback (may redirect or exchange code)
   try {
     await dropboxAPI.init();
   } catch (error) {
@@ -116,19 +120,50 @@ async function initializeAPIs() {
     console.warn('PDF converter init warning:', error);
   }
 
-  // Update UI with auth status and fetch account info if authenticated
+  // Restore Nextcloud credentials from localStorage
+  nextcloudAPI.init();
+
+  // Update Dropbox UI
+  const dropboxConfigured = dropboxAPI.isConfigured();
   if (dropboxAPI.isAuthenticated()) {
     try {
       const accountInfo = await dropboxAPI.getAccountInfo();
       const accountName = accountInfo.name?.display_name || accountInfo.email || 'Verbunden';
-      updateAuthStatus(true, accountName);
+      updateAuthStatus(true, accountName, dropboxConfigured);
     } catch (error) {
-      console.warn('Could not fetch account info:', error);
-      updateAuthStatus(true);
+      console.warn('Could not fetch Dropbox account info:', error);
+      updateAuthStatus(true, null, dropboxConfigured);
     }
   } else {
-    updateAuthStatus(false);
+    updateAuthStatus(false, null, dropboxConfigured);
   }
+
+  // Update Nextcloud UI
+  if (nextcloudAPI.isConfigured()) {
+    const info = nextcloudAPI.getUserInfo();
+    updateState({ isNextcloudConnected: true });
+    updateNextcloudStatus(true, `${info.displayName} @ ${info.server}`);
+    // Pre-fill settings fields so the user can see/edit them
+    const el = getElements();
+    if (el.nextcloudUrl)      el.nextcloudUrl.value      = info.server;
+    if (el.nextcloudUsername) el.nextcloudUsername.value = info.displayName;
+    if (el.nextcloudPassword) el.nextcloudPassword.value = nextcloudAPI.appPassword || '';
+  } else {
+    updateNextcloudStatus(false);
+  }
+
+  // Show/hide storage target selector
+  refreshStorageTargetUI();
+}
+
+/**
+ * Refresh the storage target selector visibility and value.
+ */
+function refreshStorageTargetUI() {
+  const dropboxOk   = dropboxAPI.isAuthenticated();
+  const nextcloudOk = nextcloudAPI.isConfigured();
+  const stored = localStorage.getItem(CONFIG.storage.storageTarget) || CONFIG.storageTarget;
+  updateStorageTargetUI(dropboxOk, nextcloudOk, stored);
 }
 
 /**
@@ -212,6 +247,23 @@ function bindEvents() {
   el.btnDropboxDisconnect.addEventListener('click', disconnectDropbox);
   el.btnClearData.addEventListener('click', clearAllData);
 
+  // Dropbox App Key (optional override input)
+  if (el.btnDropboxSaveKey) {
+    el.btnDropboxSaveKey.addEventListener('click', saveDropboxClientId);
+  }
+
+  // Nextcloud
+  if (el.btnNextcloudTest)       el.btnNextcloudTest.addEventListener('click', testNextcloudConnection);
+  if (el.btnNextcloudSave)       el.btnNextcloudSave.addEventListener('click', saveNextcloudCredentials);
+  if (el.btnNextcloudDisconnect) el.btnNextcloudDisconnect.addEventListener('click', disconnectNextcloud);
+
+  // Storage target selector
+  if (el.storageTargetSelect) {
+    el.storageTargetSelect.addEventListener('change', (e) => {
+      localStorage.setItem(CONFIG.storage.storageTarget, e.target.value);
+    });
+  }
+
   // Home screen connect button
   if (el.btnHomeConnect) {
     el.btnHomeConnect.addEventListener('click', connectDropbox);
@@ -260,9 +312,9 @@ let detectionState = {
  * @param {boolean} multiPageMode - Whether to scan multiple pages
  */
 async function startScan(multiPageMode = false) {
-  // Check prerequisites - only Dropbox needed now
-  if (!dropboxAPI.isAuthenticated()) {
-    showToast('Bitte mit Dropbox verbinden', 'warning');
+  // Require at least one cloud storage to be connected
+  if (!dropboxAPI.isAuthenticated() && !nextcloudAPI.isConfigured()) {
+    showToast('Bitte zuerst Dropbox oder Nextcloud verbinden', 'warning');
     openSettings();
     return;
   }
@@ -1217,8 +1269,6 @@ async function handleSave(e) {
 
     // Get filename (either manual or auto-generated)
     const filename = sanitizeFilename(getFilename());
-    const folder = `${CONFIG.dropbox.baseFolder}/${category.folder}`;
-    const path = `${folder}/${filename}`;
 
     let pdfBlob;
     let pageCount = 1;
@@ -1254,23 +1304,65 @@ async function handleSave(e) {
       console.log('[Save] PDF created, size:', pdfBlob?.size);
     }
 
-    // Upload to Dropbox
-    updateProcessingStatus('Wird hochgeladen...', 'Speichern in Dropbox');
-    await dropboxAPI.uploadFile(pdfBlob, path);
+    // Determine upload targets
+    const storageTarget = localStorage.getItem(CONFIG.storage.storageTarget) || CONFIG.storageTarget;
+    const useDropbox   = dropboxAPI.isAuthenticated()  && (storageTarget === 'dropbox'   || storageTarget === 'both');
+    const useNextcloud = nextcloudAPI.isConfigured()   && (storageTarget === 'nextcloud' || storageTarget === 'both');
+
+    // Fallback: if the preferred target is unavailable, use whatever is connected
+    const effectiveDropbox   = useDropbox   || (!useNextcloud && dropboxAPI.isAuthenticated());
+    const effectiveNextcloud = useNextcloud || (!useDropbox   && nextcloudAPI.isConfigured());
+
+    const uploadErrors = [];
+
+    if (effectiveDropbox) {
+      updateProcessingStatus('Wird hochgeladen...', 'Speichern in Dropbox');
+      try {
+        const dropboxPath = `${CONFIG.dropbox.baseFolder}/${category.folder}/${filename}`;
+        await dropboxAPI.uploadFile(pdfBlob, dropboxPath);
+      } catch (err) {
+        uploadErrors.push(`Dropbox: ${err.message}`);
+      }
+    }
+
+    if (effectiveNextcloud) {
+      updateProcessingStatus('Wird hochgeladen...', 'Speichern in Nextcloud');
+      try {
+        const ncPath = `${CONFIG.nextcloud.baseFolder}/${category.folder}/${filename}`;
+        await nextcloudAPI.uploadFile(pdfBlob, ncPath);
+      } catch (err) {
+        uploadErrors.push(`Nextcloud: ${err.message}`);
+      }
+    }
+
+    if (uploadErrors.length > 0 && (!effectiveDropbox || !effectiveNextcloud || uploadErrors.length >= (effectiveDropbox + effectiveNextcloud))) {
+      throw new Error(uploadErrors.join(' | '));
+    }
+    if (uploadErrors.length > 0) {
+      showToast(`Teilweise gespeichert – ${uploadErrors.join('; ')}`, 'warning');
+    }
+
+    // Build storage label for success screen
+    const storageParts = [];
+    if (effectiveDropbox)   storageParts.push('Dropbox');
+    if (effectiveNextcloud) storageParts.push('Nextcloud');
+    const storageLabel = storageParts.join(' & ') || 'Cloud';
 
     // Show success
     if (pageCount > 1) {
       showSuccessMultipage({
         filename,
-        folder,
+        folder: category.folder,
         category: formData.category,
-        pageCount
+        pageCount,
+        storageLabel
       });
     } else {
       showSuccess({
         filename,
-        folder,
-        category: formData.category
+        folder: category.folder,
+        category: formData.category,
+        storageLabel
       });
     }
 
@@ -1289,62 +1381,145 @@ async function handleSave(e) {
 }
 
 /**
- * Connect to Dropbox
+ * Save a Dropbox Client ID entered in the Settings UI.
+ */
+function saveDropboxClientId() {
+  const el = getElements();
+  const id = el.dropboxClientIdInput?.value?.trim();
+  if (!id) {
+    showToast('Bitte einen App-Key eingeben', 'warning');
+    return;
+  }
+  dropboxAPI.setClientId(id);
+  updateAuthStatus(false, null, true); // hide app-key section
+  showToast('App-Key gespeichert – jetzt verbinden', 'success');
+}
+
+/**
+ * Connect to Dropbox via OAuth PKCE flow.
  */
 async function connectDropbox() {
-  // Check if Dropbox is configured (has Client ID)
   if (!dropboxAPI.isConfigured()) {
-    showToast('Dropbox ist nicht konfiguriert. Bitte Client ID in config.js setzen.', 'error');
+    showToast('Dropbox App-Key fehlt. Bitte zuerst den App-Key in den Einstellungen eintragen.', 'error');
     return;
   }
 
   try {
-    await dropboxAPI.authorize();
-    // Note: This will redirect to Dropbox
+    await dropboxAPI.authorize(); // redirects to Dropbox
   } catch (error) {
     showToast('Verbindung fehlgeschlagen: ' + error.message, 'error');
   }
 }
 
 /**
- * Disconnect from Dropbox
+ * Disconnect from Dropbox.
  */
 function disconnectDropbox() {
   dropboxAPI.clearTokens();
-  updateAuthStatus(false);
+  updateAuthStatus(false, null, dropboxAPI.isConfigured());
+  updateState({ isAuthenticated: false });
+  refreshStorageTargetUI();
   showToast('Dropbox-Verbindung getrennt', 'info');
 }
 
 /**
- * Clear all stored data
+ * Test the Nextcloud connection with the current settings-panel values.
  */
-function clearAllData() {
-  if (!confirm('Alle gespeicherten Daten (Token, Einstellungen, gecachte Modelle) löschen?')) {
+async function testNextcloudConnection() {
+  const el = getElements();
+  const url      = el.nextcloudUrl?.value?.trim();
+  const username = el.nextcloudUsername?.value?.trim();
+  const password = el.nextcloudPassword?.value?.trim();
+
+  if (!url || !username || !password) {
+    showToast('Bitte alle Nextcloud-Felder ausfüllen', 'warning');
     return;
   }
 
-  // Clear all storage
+  // Temporarily set credentials for the test
+  nextcloudAPI.serverUrl   = url.replace(/\/+$/, '');
+  nextcloudAPI.username    = username;
+  nextcloudAPI.appPassword = password;
+
+  try {
+    await nextcloudAPI.testConnection();
+    showToast('Nextcloud-Verbindung erfolgreich!', 'success');
+  } catch (error) {
+    nextcloudAPI.serverUrl   = null;
+    nextcloudAPI.username    = null;
+    nextcloudAPI.appPassword = null;
+    showToast('Nextcloud-Fehler: ' + error.message, 'error');
+  }
+}
+
+/**
+ * Save Nextcloud credentials from the settings panel.
+ */
+async function saveNextcloudCredentials() {
+  const el = getElements();
+  const url      = el.nextcloudUrl?.value?.trim();
+  const username = el.nextcloudUsername?.value?.trim();
+  const password = el.nextcloudPassword?.value?.trim();
+
+  if (!url || !username || !password) {
+    showToast('Bitte alle Nextcloud-Felder ausfüllen', 'warning');
+    return;
+  }
+
+  nextcloudAPI.saveCredentials(url, username, password);
+
+  // Verify the connection
+  try {
+    await nextcloudAPI.testConnection();
+    const info = nextcloudAPI.getUserInfo();
+    updateState({ isNextcloudConnected: true });
+    updateNextcloudStatus(true, `${info.displayName} @ ${info.server}`);
+    refreshStorageTargetUI();
+    showToast('Nextcloud verbunden', 'success');
+  } catch (error) {
+    nextcloudAPI.clearCredentials();
+    updateNextcloudStatus(false);
+    showToast('Speichern fehlgeschlagen: ' + error.message, 'error');
+  }
+}
+
+/**
+ * Disconnect from Nextcloud.
+ */
+function disconnectNextcloud() {
+  nextcloudAPI.clearCredentials();
+  updateState({ isNextcloudConnected: false });
+  updateNextcloudStatus(false);
+  refreshStorageTargetUI();
+  showToast('Nextcloud-Verbindung getrennt', 'info');
+}
+
+/**
+ * Clear all stored data.
+ */
+function clearAllData() {
+  if (!confirm('Alle gespeicherten Daten (Token, Zugangsdaten, Einstellungen, gecachte Modelle) löschen?')) {
+    return;
+  }
+
   localStorage.clear();
   sessionStorage.clear();
 
-  // Clear API clients
   dropboxAPI.clearTokens();
+  nextcloudAPI.clearCredentials();
 
   // Terminate OCR worker if running
   ocrService.terminate().catch(() => {});
 
-  // Clear cache (including model cache)
+  // Clear service worker cache
   if ('caches' in window) {
-    caches.keys().then(names => {
-      names.forEach(name => caches.delete(name));
-    });
+    caches.keys().then(names => names.forEach(name => caches.delete(name)));
   }
 
-  // Clear IndexedDB (OCR model cache)
+  // Clear IndexedDB OCR model cache
   if ('indexedDB' in window) {
     indexedDB.databases().then(dbs => {
       dbs.forEach(db => {
-        // Clear OCR-related caches (PaddleOCR, ONNX, etc.)
         if (db.name && (db.name.includes('ocr') || db.name.includes('onnx') || db.name.includes('paddle'))) {
           indexedDB.deleteDatabase(db.name);
         }
@@ -1352,10 +1527,11 @@ function clearAllData() {
     }).catch(() => {});
   }
 
-  // Reset UI
-  updateAuthStatus(false);
+  updateAuthStatus(false, null, dropboxAPI.isConfigured());
+  updateNextcloudStatus(false);
+  updateState({ isAuthenticated: false, isNextcloudConnected: false });
+  refreshStorageTargetUI();
   closeSettings();
-
   showToast('Alle Daten gelöscht', 'success');
 }
 

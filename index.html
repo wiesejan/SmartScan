@@ -10,13 +10,14 @@
   <meta name="apple-mobile-web-app-title" content="SmartScan">
 
   <!-- Content Security Policy for XSS protection -->
+  <!-- connect-src uses https: to allow user-configured Nextcloud servers (dynamic URLs) -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' https://cdnjs.cloudflare.com https://docs.opencv.org https://cdn.jsdelivr.net 'wasm-unsafe-eval';
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     media-src 'self' blob:;
-    connect-src 'self' https://api.dropboxapi.com https://content.dropboxapi.com https://cdn.jsdelivr.net https://unpkg.com;
+    connect-src 'self' https://api.dropboxapi.com https://content.dropboxapi.com https://www.dropbox.com https://cdn.jsdelivr.net https://unpkg.com https:;
     worker-src 'self' blob:;
     child-src 'self' blob:;
   ">
@@ -62,7 +63,7 @@
       <section class="screen home active" id="screen-home" aria-label="Startseite">
         <div class="home__hero">
           <h1 class="home__title">Dokumente digitalisieren</h1>
-          <p class="home__subtitle">Fotografieren, kategorisieren und automatisch in Dropbox speichern.</p>
+          <p class="home__subtitle">Fotografieren, kategorisieren und in der Cloud speichern.</p>
 
           <div class="home__features">
             <div class="home__feature">
@@ -86,7 +87,7 @@
                 <polyline points="17 8 12 3 7 8"/>
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              <span class="home__feature-text">Als PDF in Dropbox speichern - automatisch sortiert</span>
+              <span class="home__feature-text">Als PDF speichern – automatisch sortiert in Dropbox oder Nextcloud</span>
             </div>
           </div>
         </div>
@@ -111,28 +112,25 @@
           </button>
         </div>
 
-        <!-- Dropbox Connection Prompt (shown when not connected) -->
+        <!-- Cloud Storage Connection Prompt (shown when no storage is connected) -->
         <div class="home__connect" id="home-connect-prompt">
           <div class="home__connect-card">
             <svg class="home__connect-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
             </svg>
-            <p class="home__connect-text">Verbinde SmartScan mit Dropbox, um Dokumente zu speichern</p>
+            <p class="home__connect-text">Verbinde SmartScan mit Dropbox oder Nextcloud, um Dokumente zu speichern</p>
             <button type="button" class="btn btn--primary" id="btn-home-connect">
               <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m7.07 7.07l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m7.07-7.07l4.24-4.24"/>
               </svg>
-              Mit Dropbox verbinden
+              Cloud-Speicher verbinden
             </button>
           </div>
         </div>
 
         <p class="text-muted text-center" id="auth-status" style="margin-top: auto; padding-top: var(--spacing-lg);">
-          Nicht mit Dropbox verbunden
+          Kein Cloud-Speicher verbunden
         </p>
       </section>
 
@@ -292,45 +290,30 @@
             <select class="form-select" id="edit-category" required>
               <option value="">Bitte wählen...</option>
               <optgroup label="Finanzen">
-                <option value="fin-gehalt">Gehaltsabrechnung</option>
-                <option value="fin-steuer">Steuerdokumente</option>
-                <option value="fin-bauspar">Bausparvertrag</option>
-                <option value="fin-dkb">DKB</option>
-                <option value="fin-haspa">Haspa</option>
-                <option value="fin-depot">Wertpapierdepot</option>
-                <option value="fin-bav">Betriebliche Altersvorsorge</option>
-                <option value="fin-kreditkarte">Kreditkartenabrechnung</option>
+                <option value="payslip">Gehaltsabrechnung</option>
+                <option value="bank">Bankdokument / Kontoauszug</option>
+                <option value="investment">Depot / Wertpapiere</option>
+                <option value="tax">Steuerdokument</option>
+                <option value="savings">Spar- &amp; Bausparvertrag</option>
               </optgroup>
-              <optgroup label="Rechnungen">
-                <option value="rechnung">Rechnung</option>
+              <optgroup label="Rechnungen &amp; Belege">
+                <option value="invoice">Rechnung</option>
+                <option value="receipt">Kassenbeleg / Quittung</option>
               </optgroup>
               <optgroup label="Verträge">
-                <option value="vertrag-erdgas">Erdgas</option>
-                <option value="vertrag-mobilfunk">Mobilfunkvertrag</option>
-                <option value="vertrag-internet">Internet + Telefon</option>
-                <option value="vertrag-strom">Strom</option>
+                <option value="contract-utility">Strom / Gas / Wasser</option>
+                <option value="contract-telecom">Mobilfunk / Internet</option>
+                <option value="contract-general">Sonstiger Vertrag</option>
               </optgroup>
               <optgroup label="Versicherungen">
-                <option value="vers-auto">Auto + E-Scooter</option>
-                <option value="vers-bu">Berufsunfähigkeit</option>
-                <option value="vers-rente">Deutsche Rentenversicherung</option>
-                <option value="vers-haftpflicht">Haftpflicht</option>
-                <option value="vers-hausrat">Hausrat</option>
-                <option value="vers-kranken">Krankenversicherung</option>
-                <option value="vers-kuendigung">Kündigung Versicherung</option>
-                <option value="vers-rechtsschutz">Rechtsschutz</option>
-                <option value="vers-reise">Reiseversicherung</option>
-                <option value="vers-risiko-jan">Risiko-Leben Jan</option>
-                <option value="vers-wohngebaeude">Wohngebäude</option>
-                <option value="vers-zahn">Zahnzusatz</option>
+                <option value="insurance-health">Krankenversicherung</option>
+                <option value="insurance-vehicle">KFZ-Versicherung</option>
+                <option value="insurance-liability">Haftpflicht</option>
+                <option value="insurance-other">Sonstige Versicherung</option>
               </optgroup>
               <optgroup label="Weitere">
-                <option value="medizin">Medizinisches Dokument</option>
-                <option value="ehe">Ehedokument</option>
-              </optgroup>
-              <optgroup label="Kinder">
-                <option value="kind-salome">Salomé</option>
-                <option value="kind-david">David</option>
+                <option value="medical">Medizinisches Dokument</option>
+                <option value="official">Behördendokument</option>
               </optgroup>
               <option value="other">Sonstiges</option>
             </select>
@@ -408,7 +391,7 @@
         </svg>
 
         <h2 class="success__title">Erfolgreich gespeichert!</h2>
-        <p class="success__message">Ihr Dokument wurde als PDF in Dropbox gespeichert.</p>
+        <p class="success__message" id="success-message">Ihr Dokument wurde als PDF gespeichert.</p>
 
         <div class="success__details">
           <div class="success__detail">
@@ -422,6 +405,10 @@
           <div class="success__detail">
             <span class="success__detail-label">Kategorie</span>
             <span class="success__detail-value" id="success-category">-</span>
+          </div>
+          <div class="success__detail" id="success-storage-container">
+            <span class="success__detail-label">Gespeichert in</span>
+            <span class="success__detail-value" id="success-storage">-</span>
           </div>
           <div class="success__detail hidden" id="success-pages-container">
             <span class="success__detail-label">Seiten</span>
@@ -462,8 +449,26 @@
       </div>
 
       <div class="settings-panel__content">
+
+        <!-- ── Dropbox ───────────────────────────────────────────── -->
         <div class="settings-section">
           <h3 class="settings-section__title">Dropbox</h3>
+
+          <!-- App Key input (shown when Dropbox is not yet configured) -->
+          <div id="dropbox-appkey-section" class="hidden">
+            <p class="form-hint" style="margin-bottom: var(--spacing-sm);">
+              Füge den App-Key deiner Dropbox-App ein.
+              <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener">App erstellen →</a>
+            </p>
+            <div style="display:flex;gap:var(--spacing-sm);align-items:center;">
+              <input type="text" class="form-input" id="dropbox-client-id-input"
+                     placeholder="App-Key (z.B. abc123xyz)" style="flex:1;">
+              <button type="button" class="btn btn--secondary btn--small" id="btn-dropbox-save-key">
+                Speichern
+              </button>
+            </div>
+          </div>
+
           <div class="dropbox-status" id="dropbox-status">
             <div class="dropbox-status__disconnected" id="dropbox-disconnected">
               <p class="dropbox-status__text">Nicht verbunden</p>
@@ -494,18 +499,81 @@
           </div>
         </div>
 
+        <!-- ── Nextcloud ─────────────────────────────────────────── -->
         <div class="settings-section">
-          <h3 class="settings-section__title">Speicher</h3>
+          <h3 class="settings-section__title">Nextcloud</h3>
+
+          <div id="nextcloud-disconnected">
+            <div class="form-group" style="margin-bottom:var(--spacing-sm);">
+              <label class="form-label" for="nextcloud-url">Server-URL</label>
+              <input type="url" class="form-input" id="nextcloud-url"
+                     placeholder="https://cloud.beispiel.de">
+            </div>
+            <div class="form-group" style="margin-bottom:var(--spacing-sm);">
+              <label class="form-label" for="nextcloud-username">Benutzername</label>
+              <input type="text" class="form-input" id="nextcloud-username"
+                     placeholder="dein-benutzername" autocomplete="username">
+            </div>
+            <div class="form-group" style="margin-bottom:var(--spacing-sm);">
+              <label class="form-label" for="nextcloud-password">App-Passwort</label>
+              <input type="password" class="form-input" id="nextcloud-password"
+                     placeholder="Nextcloud App-Passwort" autocomplete="new-password">
+              <p class="form-hint">
+                App-Passwörter erstellen: Nextcloud → Einstellungen → Sicherheit → App-Passwörter
+              </p>
+            </div>
+            <div style="display:flex;gap:var(--spacing-sm);">
+              <button type="button" class="btn btn--secondary btn--small" id="btn-nextcloud-test">
+                Verbindung testen
+              </button>
+              <button type="button" class="btn btn--primary btn--small" id="btn-nextcloud-save">
+                Speichern
+              </button>
+            </div>
+          </div>
+
+          <div id="nextcloud-connected" class="hidden">
+            <div class="dropbox-status__info">
+              <svg class="dropbox-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <div>
+                <p class="dropbox-status__text dropbox-status__text--connected">Verbunden</p>
+                <p class="dropbox-status__account" id="nextcloud-account-name">-</p>
+              </div>
+            </div>
+            <button type="button" class="btn btn--secondary btn--small" id="btn-nextcloud-disconnect"
+                    style="margin-top:var(--spacing-sm);">
+              Trennen
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Speicherziel ──────────────────────────────────────── -->
+        <div class="settings-section" id="storage-target-section" style="display:none;">
+          <h3 class="settings-section__title">Speicherziel</h3>
+          <select class="form-select" id="storage-target-select">
+            <option value="dropbox">Nur Dropbox</option>
+            <option value="nextcloud">Nur Nextcloud</option>
+            <option value="both">Dropbox &amp; Nextcloud</option>
+          </select>
+          <p class="form-hint">Wohin sollen Dokumente gespeichert werden?</p>
+        </div>
+
+        <!-- ── Daten löschen ─────────────────────────────────────── -->
+        <div class="settings-section">
+          <h3 class="settings-section__title">Daten</h3>
           <button type="button" class="btn btn--danger" id="btn-clear-data">
             Alle Daten löschen
           </button>
-          <p class="form-hint">Löscht API-Keys, Token und Einstellungen</p>
+          <p class="form-hint">Löscht Token, Zugangsdaten und Einstellungen</p>
         </div>
 
         <div class="settings-section" style="margin-top: auto; padding-top: var(--spacing-lg); border-top: 1px solid var(--border-color);">
           <p class="text-muted" style="font-size: 0.75rem;">
-            SmartScan v2.0.0<br>
-            100% Open Source - Offline-fähig
+            SmartScan v2.1.0<br>
+            100% Open Source – Offline-fähig
           </p>
         </div>
       </div>
