@@ -73,10 +73,15 @@ class NextcloudAPI {
 
   /**
    * Basic Auth header value.
+   * Uses TextEncoder to safely handle non-ASCII characters (umlauts, etc.)
    * @returns {string}
    */
   getAuthHeader() {
-    return 'Basic ' + btoa(`${this.username}:${this.appPassword}`);
+    const credentials = `${this.username}:${this.appPassword}`;
+    // btoa() breaks on non-ASCII — encode via Uint8Array instead
+    const bytes = new TextEncoder().encode(credentials);
+    const binary = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
+    return 'Basic ' + btoa(binary);
   }
 
   /**
@@ -88,8 +93,9 @@ class NextcloudAPI {
   }
 
   /**
-   * Verify connectivity and credentials with a lightweight PROPFIND.
-   * @returns {Promise<{displayName: string, server: string}>}
+   * Verify connectivity and credentials via the Nextcloud OCS capabilities endpoint.
+   * Uses a plain GET request — no WebDAV methods, CORS-friendly on all versions.
+   * @returns {Promise<{displayName: string, server: string, version: string}>}
    * @throws {Error} on auth failure or network error
    */
   async testConnection() {
@@ -97,11 +103,14 @@ class NextcloudAPI {
       throw new Error('Nextcloud nicht konfiguriert');
     }
 
-    const response = await fetch(this.getWebDAVBase() + '/', {
-      method: 'PROPFIND',
+    // OCS capabilities: standard GET, works cross-origin without special CORS headers
+    const url = `${this.serverUrl}/ocs/v2.php/cloud/capabilities?format=json`;
+
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Authorization': this.getAuthHeader(),
-        'Depth': '0'
+        'OCS-APIRequest': 'true'  // Required by Nextcloud OCS endpoints
       }
     });
 
@@ -109,14 +118,16 @@ class NextcloudAPI {
       throw new Error('Ungültige Anmeldedaten – bitte Benutzername und App-Passwort prüfen');
     }
     if (response.status === 404) {
-      throw new Error('Server nicht gefunden – bitte URL prüfen');
+      throw new Error('Nextcloud nicht gefunden – bitte Server-URL prüfen');
     }
-    // WebDAV success returns 207 Multi-Status
-    if (!response.ok && response.status !== 207) {
+    if (!response.ok) {
       throw new Error(`Verbindung fehlgeschlagen: HTTP ${response.status}`);
     }
 
-    return { displayName: this.username, server: this.serverUrl };
+    const data = await response.json();
+    const version = data?.ocs?.data?.version?.string || 'Unbekannt';
+
+    return { displayName: this.username, server: this.serverUrl, version };
   }
 
   /**
