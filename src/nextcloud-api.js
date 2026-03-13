@@ -103,16 +103,39 @@ class NextcloudAPI {
       throw new Error('Nextcloud nicht konfiguriert');
     }
 
+    // Mixed-content check: HTTPS app cannot load HTTP resources
+    if (location.protocol === 'https:' && this.serverUrl.startsWith('http:')) {
+      throw new Error(
+        'Gemischte Inhalte blockiert: Die App läuft über HTTPS, aber die Nextcloud-URL verwendet HTTP. ' +
+        'Bitte eine HTTPS-URL für den Nextcloud-Server verwenden.'
+      );
+    }
+
     // OCS capabilities: standard GET, works cross-origin without special CORS headers
     const url = `${this.serverUrl}/ocs/v2.php/cloud/capabilities?format=json`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': this.getAuthHeader(),
-        'OCS-APIRequest': 'true'  // Required by Nextcloud OCS endpoints
-      }
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': this.getAuthHeader(),
+          'OCS-APIRequest': 'true'  // Required by Nextcloud OCS endpoints
+        }
+      });
+    } catch (networkError) {
+      // fetch() throws TypeError on network-level failures (CORS, DNS, SSL, offline)
+      const isHttps = location.protocol === 'https:';
+      throw new Error(
+        'Verbindung zum Nextcloud-Server nicht möglich.\n' +
+        'Mögliche Ursachen:\n' +
+        '• CORS nicht konfiguriert: In der Nextcloud config.php muss ' +
+        `"cors.allowed-domains" die Adresse dieser App (${location.origin}) enthalten.\n` +
+        (isHttps ? '• SSL-Zertifikat ungültig oder selbst signiert.\n' : '') +
+        '• Server nicht erreichbar oder URL falsch.\n\n' +
+        `Technischer Fehler: ${networkError.message}`
+      );
+    }
 
     if (response.status === 401) {
       throw new Error('Ungültige Anmeldedaten – bitte Benutzername und App-Passwort prüfen');
