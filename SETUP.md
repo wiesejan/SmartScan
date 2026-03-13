@@ -82,7 +82,70 @@ dropbox: {
 
 ---
 
-## Schritt 3: Änderungen committen und pushen
+---
+
+## Schritt 3: Nextcloud einrichten (optional)
+
+SmartScan kann Dokumente alternativ oder zusätzlich zu Dropbox in eine selbst gehostete Nextcloud-Instanz hochladen.
+
+### 3.1 App-Passwort in Nextcloud erstellen
+
+1. In Nextcloud einloggen → **Einstellungen** → **Sicherheit**
+2. Unter **App-Passwörter** einen Namen eingeben (z. B. `SmartScan`) → **Erstellen**
+3. Das angezeigte Passwort kopieren — es wird nur einmal angezeigt
+
+> Das App-Passwort hat keinen Zugriff auf dein Hauptkonto-Passwort und kann jederzeit einzeln widerrufen werden.
+
+### 3.2 CORS in Caddy konfigurieren
+
+Wenn SmartScan auf einer anderen Domain läuft als Nextcloud (z. B. GitHub Pages vs. eigene Subdomain), muss der Reverse Proxy CORS-Header für die SmartScan-Domain setzen. Nextclouds eigene `cors.allowed-domains`-Einstellung ist für Browser-Preflight-Requests nicht zuverlässig.
+
+Öffne die Caddyfile auf dem Server:
+```bash
+nano /opt/server/infrastructure/Caddyfile
+```
+
+Ersetze den `nextcloud.yourdomain.com`-Block durch:
+```caddy
+nextcloud.yourdomain.com {
+    redir /.well-known/carddav /remote.php/dav 301
+    redir /.well-known/caldav /remote.php/dav 301
+
+    @cors_preflight method OPTIONS
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "https://deine-smartscan-domain.com"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PROPFIND, MKCOL, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, OCS-APIRequest, Depth, Accept"
+        header Access-Control-Max-Age "1728000"
+        respond "" 204
+    }
+
+    header Access-Control-Allow-Origin "https://deine-smartscan-domain.com"
+    header Access-Control-Allow-Credentials "true"
+
+    reverse_proxy nextcloud:80 {
+        header_down Strict-Transport-Security "max-age=15552000; includeSubDomains; preload"
+    }
+}
+```
+
+Caddy neu laden:
+```bash
+docker exec $(docker ps -qf "name=caddy") caddy reload --config /etc/caddy/Caddyfile
+```
+
+### 3.3 Nextcloud in SmartScan verbinden
+
+1. SmartScan öffnen → **Einstellungen**
+2. Unter **Nextcloud** eintragen:
+   - **Server-URL**: `https://nextcloud.yourdomain.com`
+   - **Benutzername**: dein Nextcloud-Benutzername
+   - **App-Passwort**: das in Schritt 3.1 erstellte Passwort
+3. **Verbindung testen** → bei Erfolg **Speichern**
+
+---
+
+## Schritt 5: Änderungen committen und pushen
 
 ```bash
 # Änderungen stagen
@@ -97,7 +160,7 @@ git push origin main
 
 ---
 
-## Schritt 4: GitHub Pages aktivieren (falls noch nicht geschehen)
+## Schritt 6: GitHub Pages aktivieren (falls noch nicht geschehen)
 
 1. Gehe zu deinem Repository auf GitHub
 2. **Settings** → **Pages**
@@ -112,7 +175,7 @@ https://wiesejan.github.io/SmartScan/
 
 ---
 
-## Schritt 5: Testen
+## Schritt 7: Testen
 
 ### 5.1 Erster Test
 1. Öffne die App im Browser
@@ -132,7 +195,7 @@ https://wiesejan.github.io/SmartScan/
 
 ---
 
-## Schritt 6: Produktion (>50 Nutzer)
+## Schritt 8: Produktion (>50 Nutzer)
 
 ### Wann ist Production Status nötig?
 - **Development Mode**: Bis zu 500 Nutzer

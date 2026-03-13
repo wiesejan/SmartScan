@@ -308,3 +308,100 @@ For the app to be usable by people other than the owner, the following is needed
 |------|---------|
 | `1bd61f8` | feat: Generic categories, Nextcloud integration, Dropbox UX improvements |
 | `70f5b54` | fix: Nextcloud connection check and auth encoding |
+
+---
+
+## Session: 2026-03-13
+
+### Context
+
+Debugging Nextcloud connection failure and fixing CORS for the production setup on Hetzner (Caddy reverse proxy).
+
+---
+
+## 1. Nextcloud CORS — Root Cause and Fix
+
+### Symptom
+Connecting to Nextcloud via SmartScan Settings showed:
+> `Nextcloud-Fehler: Load failed`
+
+The error was a browser-level `TypeError` thrown by `fetch()` before any HTTP response was received — meaning the request was blocked client-side, not rejected by the server.
+
+### Root cause: CORS preflight blocked
+The app runs on `https://wiesejan.github.io` (origin A). The Nextcloud server is at `https://nextcloud.wiese-tech.com` (origin B). Any `fetch()` from A to B with an `Authorization` header triggers a **CORS preflight** (OPTIONS request). The server must respond with `Access-Control-Allow-Origin` and related headers, otherwise the browser aborts the request entirely — producing "Load failed" / "Failed to fetch" with no HTTP status code.
+
+### Why `occ cors.allowed-domains` does not work
+Nextcloud's built-in `cors.allowed-domains` config key (set via `occ config:system:set`) does not correctly handle CORS preflight requests in practice. It must not be relied upon for browser-based cross-origin access.
+
+### Fix: CORS headers in Caddy
+The Hetzner server uses **Caddy** as the reverse proxy (not Nginx). CORS headers were added to the `nextcloud.wiese-tech.com` block in `/opt/server/infrastructure/Caddyfile`:
+
+```caddy
+nextcloud.wiese-tech.com {
+    redir /.well-known/carddav /remote.php/dav 301
+    redir /.well-known/caldav /remote.php/dav 301
+
+    @cors_preflight method OPTIONS
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "https://wiesejan.github.io"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PROPFIND, MKCOL, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, OCS-APIRequest, Depth, Accept"
+        header Access-Control-Max-Age "1728000"
+        respond "" 204
+    }
+
+    header Access-Control-Allow-Origin "https://wiesejan.github.io"
+    header Access-Control-Allow-Credentials "true"
+
+    reverse_proxy nextcloud:80 {
+        header_down Strict-Transport-Security "max-age=15552000; includeSubDomains; preload"
+    }
+}
+```
+
+Reload with:
+```bash
+docker exec $(docker ps -qf "name=caddy") caddy reload --config /etc/caddy/Caddyfile
+```
+
+> **Note:** Section 6 (Server Relocation) references Nginx for CORS. The actual infrastructure uses Caddy. The Caddy config above supersedes those Nginx instructions.
+
+---
+
+## 2. Improved Error Messages for Network Failures
+
+### Problem
+When `fetch()` throws a `TypeError` (CORS block, DNS failure, SSL error, offline), the previous code forwarded the raw browser error message — "Load failed" on Safari, "Failed to fetch" on Chrome — which gives the user no actionable information.
+
+### Fix
+`testConnection()` in `src/nextcloud-api.js` now:
+1. Detects mixed content (HTTPS app + HTTP Nextcloud URL) before making any request
+2. Catches `TypeError` from `fetch()` separately from HTTP errors
+3. Shows a structured error message with the specific possible causes and the app's own origin
+
+### Files changed
+- `src/nextcloud-api.js` — mixed-content pre-check, try/catch around `fetch()`, diagnostic error message
+
+---
+
+## 3. Multi-User Readiness — Updated Status
+
+| Priority | Item | Status |
+|----------|------|--------|
+| Required | Generic categories (no personal data) | ✅ Done |
+| Required | Single registered Dropbox app (one Client ID for all) | ✅ Done |
+| Required | Nextcloud WebDAV integration | ✅ Done |
+| Required | CORS configured on Nextcloud server | ✅ Done (Caddy) |
+| Recommended | Backend proxy to protect API keys | Future |
+| Recommended | User accounts / per-user settings | Future |
+| Recommended | Privacy notice / Datenschutzerklärung | Required if public |
+| Nice to have | User-defined custom categories | Future |
+| Nice to have | Multi-language support (app is German-only) | Future |
+
+---
+
+## Commits in this session
+
+| Hash | Message |
+|------|---------|
+| `3e62aa0` | fix: Improve Nextcloud connection error messages for CORS and mixed content |
