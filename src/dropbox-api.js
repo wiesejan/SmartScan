@@ -36,6 +36,15 @@ class DropboxAPI {
     }
 
     if (code) {
+      // Verify CSRF state before exchanging the code
+      const returnedState = urlParams.get('state');
+      const expectedState = sessionStorage.getItem(CONFIG.storage.oauthState);
+      sessionStorage.removeItem(CONFIG.storage.oauthState);
+      if (!expectedState || returnedState !== expectedState) {
+        window.history.replaceState({}, '', window.location.pathname);
+        throw new Error('OAuth state mismatch — possible CSRF attack, please try again');
+      }
+
       // Complete OAuth flow
       await this.exchangeCodeForTokens(code);
       // Clear URL params
@@ -54,22 +63,40 @@ class DropboxAPI {
   }
 
   /**
-   * Load tokens from sessionStorage
+   * Load tokens from sessionStorage.
+   * Both access and refresh tokens are session-only to reduce exposure.
+   * One-time migration: moves any existing refresh token out of localStorage.
    */
   loadTokens() {
-    this.accessToken = sessionStorage.getItem(CONFIG.storage.dropboxToken);
-    this.refreshToken = localStorage.getItem(CONFIG.storage.dropboxRefreshToken);
+    this.accessToken  = sessionStorage.getItem(CONFIG.storage.dropboxToken);
+    this.refreshToken = sessionStorage.getItem(CONFIG.storage.dropboxRefreshToken);
+
+    // Migrate refresh token from localStorage (one-time, for existing users)
+    if (!this.refreshToken) {
+      const legacy = localStorage.getItem(CONFIG.storage.dropboxRefreshToken);
+      if (legacy) {
+        this.refreshToken = legacy;
+        sessionStorage.setItem(CONFIG.storage.dropboxRefreshToken, legacy);
+        localStorage.removeItem(CONFIG.storage.dropboxRefreshToken);
+      }
+    }
+
+    const expiry = sessionStorage.getItem(CONFIG.storage.dropboxTokenExpiry);
+    this.tokenExpiry = expiry ? parseInt(expiry, 10) : null;
   }
 
   /**
-   * Save tokens to storage
+   * Save tokens to sessionStorage (session-only, not persisted across browser sessions)
    */
   saveTokens() {
     if (this.accessToken) {
       sessionStorage.setItem(CONFIG.storage.dropboxToken, this.accessToken);
     }
     if (this.refreshToken) {
-      localStorage.setItem(CONFIG.storage.dropboxRefreshToken, this.refreshToken);
+      sessionStorage.setItem(CONFIG.storage.dropboxRefreshToken, this.refreshToken);
+    }
+    if (this.tokenExpiry) {
+      sessionStorage.setItem(CONFIG.storage.dropboxTokenExpiry, String(this.tokenExpiry));
     }
   }
 
@@ -81,8 +108,10 @@ class DropboxAPI {
     this.refreshToken = null;
     this.tokenExpiry = null;
     sessionStorage.removeItem(CONFIG.storage.dropboxToken);
-    localStorage.removeItem(CONFIG.storage.dropboxRefreshToken);
+    sessionStorage.removeItem(CONFIG.storage.dropboxRefreshToken);
+    sessionStorage.removeItem(CONFIG.storage.dropboxTokenExpiry);
     sessionStorage.removeItem(CONFIG.storage.codeVerifier);
+    localStorage.removeItem(CONFIG.storage.dropboxRefreshToken); // clean up any legacy entry
   }
 
   /**
@@ -156,6 +185,10 @@ class DropboxAPI {
     // Store verifier for later exchange
     sessionStorage.setItem(CONFIG.storage.codeVerifier, codeVerifier);
 
+    // Generate CSRF state token and store alongside code verifier
+    const state = crypto.randomUUID();
+    sessionStorage.setItem(CONFIG.storage.oauthState, state);
+
     // Build authorization URL
     const params = new URLSearchParams({
       client_id: clientId,
@@ -163,7 +196,8 @@ class DropboxAPI {
       redirect_uri: getRedirectUri(),
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
-      token_access_type: 'offline' // Request refresh token
+      token_access_type: 'offline', // Request refresh token
+      state: state
     });
 
     const authUrl = `${CONFIG.dropbox.authEndpoint}?${params.toString()}`;
@@ -263,7 +297,7 @@ class DropboxAPI {
    * @param {Object} options - Fetch options
    * @returns {Promise<Response>}
    */
-  async apiRequest(endpoint, options = {}) {
+  async apiRequest(endpoint, options = {}, _retryCount = 0) {
     if (!this.accessToken) {
       throw new Error('Not authenticated');
     }
@@ -283,11 +317,13 @@ class DropboxAPI {
       }
     });
 
-    // Handle token expiry
+    // Handle token expiry — retry once after refresh
     if (response.status === 401) {
+      if (_retryCount >= 1) {
+        throw new Error('Authentication failed after token refresh — please reconnect to Dropbox');
+      }
       await this.refreshAccessToken();
-      // Retry request
-      return this.apiRequest(endpoint, options);
+      return this.apiRequest(endpoint, options, _retryCount + 1);
     }
 
     return response;

@@ -615,21 +615,24 @@ export function showToast(message, type = 'info', duration = 4000) {
     info: '<svg class="toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
   };
 
-  toast.innerHTML = `
-    ${icons[type] || icons.info}
-    <span class="toast__message">${message}</span>
-    <button type="button" class="toast__close" aria-label="Schließen">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    </button>
-  `;
+  // Insert static SVG icon via innerHTML (safe — no user data)
+  const iconContainer = document.createElement('span');
+  iconContainer.innerHTML = icons[type] || icons.info;
+  toast.appendChild(iconContainer.firstElementChild);
 
-  // Close button handler
-  toast.querySelector('.toast__close').addEventListener('click', () => {
-    removeToast(toast);
-  });
+  // Message via textContent to prevent XSS
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'toast__message';
+  msgSpan.textContent = message;
+  toast.appendChild(msgSpan);
+
+  // Close button (static SVG, safe)
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'toast__close';
+  closeBtn.setAttribute('aria-label', 'Schließen');
+  closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  closeBtn.addEventListener('click', () => removeToast(toast));
 
   elements.toastContainer.appendChild(toast);
 
@@ -770,20 +773,30 @@ export function updateMultipageUI() {
   const existingItems = elements.multipagePages.querySelectorAll('.multipage__page');
   existingItems.forEach(item => item.remove());
 
-  // Add page thumbnails
+  // Add page thumbnails — built via DOM methods to prevent XSS
   pages.forEach((page, index) => {
     const pageEl = document.createElement('div');
     pageEl.className = 'multipage__page';
-    pageEl.innerHTML = `
-      <img class="multipage__page-img" src="${page.imageData.dataUrl}" alt="Seite ${index + 1}">
-      <span class="multipage__page-number">${index + 1}</span>
-      <button type="button" class="multipage__page-remove" aria-label="Seite entfernen" data-index="${index}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
-    `;
+
+    const img = document.createElement('img');
+    img.className = 'multipage__page-img';
+    img.src = page.imageData.dataUrl;
+    img.alt = `Seite ${index + 1}`;
+
+    const num = document.createElement('span');
+    num.className = 'multipage__page-number';
+    num.textContent = String(index + 1);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'multipage__page-remove';
+    removeBtn.setAttribute('aria-label', 'Seite entfernen');
+    removeBtn.dataset.index = String(index);
+    removeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    pageEl.appendChild(img);
+    pageEl.appendChild(num);
+    pageEl.appendChild(removeBtn);
     elements.multipagePages.appendChild(pageEl);
   });
 }

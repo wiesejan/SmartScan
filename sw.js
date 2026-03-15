@@ -25,7 +25,7 @@ const STATIC_ASSETS = [
 
 const EXTERNAL_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+  'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js'
 ];
 
 // Install event - cache static assets
@@ -85,8 +85,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip API requests (Dropbox only now, no cloud AI)
-  if (url.hostname.includes('dropbox')) {
+  // Skip API requests — Dropbox and Nextcloud WebDAV (authenticated, must not be cached)
+  if (url.hostname.includes('dropbox') || url.pathname.includes('/remote.php/dav/')) {
     return;
   }
 

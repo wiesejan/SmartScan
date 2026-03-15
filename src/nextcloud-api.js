@@ -34,28 +34,56 @@ class NextcloudAPI {
   }
 
   /**
-   * Load credentials from localStorage.
+   * Load credentials.
+   * URL and username persist in localStorage (not sensitive).
+   * App password is session-only (sessionStorage) to limit exposure.
    */
   loadCredentials() {
     this.serverUrl   = localStorage.getItem(CONFIG.storage.nextcloudUrl);
     this.username    = localStorage.getItem(CONFIG.storage.nextcloudUsername);
-    this.appPassword = localStorage.getItem(CONFIG.storage.nextcloudPassword);
+    this.appPassword = sessionStorage.getItem(CONFIG.storage.nextcloudPassword);
   }
 
   /**
-   * Persist credentials to localStorage.
-   * @param {string} serverUrl   - e.g. https://cloud.example.com
+   * Persist credentials.
+   * @param {string} serverUrl   - Must be an https:// URL
    * @param {string} username
    * @param {string} appPassword - Nextcloud app password (not the main password)
+   * @throws {Error} if URL is not HTTPS or points to a private/local address
    */
   saveCredentials(serverUrl, username, appPassword) {
-    this.serverUrl   = serverUrl.replace(/\/+$/, ''); // strip trailing slash
+    const trimmedUrl = serverUrl.trim().replace(/\/+$/, '');
+
+    // Enforce HTTPS
+    if (!trimmedUrl.startsWith('https://')) {
+      throw new Error('Nextcloud-Server-URL muss HTTPS verwenden (https://...)');
+    }
+
+    // Reject localhost and private IP ranges to prevent credential exfiltration
+    try {
+      const parsed = new URL(trimmedUrl);
+      const host = parsed.hostname;
+      if (
+        host === 'localhost' || host === '127.0.0.1' || host === '::1' ||
+        /^10\./.test(host) ||
+        /^192\.168\./.test(host) ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host)
+      ) {
+        throw new Error('Private oder lokale Adressen sind nicht erlaubt');
+      }
+    } catch (e) {
+      if (e.message.includes('nicht erlaubt')) throw e;
+      throw new Error('Ungültige Server-URL');
+    }
+
+    this.serverUrl   = trimmedUrl;
     this.username    = username.trim();
     this.appPassword = appPassword.trim();
 
     localStorage.setItem(CONFIG.storage.nextcloudUrl,      this.serverUrl);
     localStorage.setItem(CONFIG.storage.nextcloudUsername, this.username);
-    localStorage.setItem(CONFIG.storage.nextcloudPassword, this.appPassword);
+    // Password goes to sessionStorage only — not persisted across browser sessions
+    sessionStorage.setItem(CONFIG.storage.nextcloudPassword, this.appPassword);
   }
 
   /**
@@ -68,7 +96,7 @@ class NextcloudAPI {
 
     localStorage.removeItem(CONFIG.storage.nextcloudUrl);
     localStorage.removeItem(CONFIG.storage.nextcloudUsername);
-    localStorage.removeItem(CONFIG.storage.nextcloudPassword);
+    sessionStorage.removeItem(CONFIG.storage.nextcloudPassword);
   }
 
   /**
@@ -196,6 +224,13 @@ class NextcloudAPI {
     }
     if (!content) {
       throw new Error('Kein Inhalt zum Hochladen');
+    }
+
+    // Mixed-content check applies to every upload, not just testConnection
+    if (location.protocol === 'https:' && this.serverUrl.startsWith('http:')) {
+      throw new Error(
+        'Gemischte Inhalte blockiert: Die App läuft über HTTPS, aber die Nextcloud-URL verwendet HTTP.'
+      );
     }
 
     // Ensure parent folder exists

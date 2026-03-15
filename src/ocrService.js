@@ -57,7 +57,7 @@ class OCRService {
   async loadTesseractScript() {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js';
       script.onload = resolve;
       script.onerror = () => reject(new Error('Failed to load Tesseract.js'));
       document.head.appendChild(script);

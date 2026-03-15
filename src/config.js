@@ -96,8 +96,10 @@ export const CONFIG = {
   storage: {
     dropboxToken: 'smartscan_dropbox_token',
     dropboxRefreshToken: 'smartscan_dropbox_refresh',
+    dropboxTokenExpiry: 'smartscan_dropbox_expiry',
     dropboxClientId: 'smartscan_dropbox_client_id', // Optional override of config clientId
     codeVerifier: 'smartscan_code_verifier',
+    oauthState: 'smartscan_oauth_state',
     nextcloudUrl: 'smartscan_nextcloud_url',
     nextcloudUsername: 'smartscan_nextcloud_username',
     nextcloudPassword: 'smartscan_nextcloud_password',
