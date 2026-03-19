@@ -941,11 +941,13 @@ async function applyCropAndContinue() {
     // Convert canvas to image data
     const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.9);
     const base64 = dataUrl.split(',')[1];
+    // Use canvas.toBlob() — fetch(dataUrl) fails in Safari on iOS
+    const blob = await new Promise(resolve => resultCanvas.toBlob(resolve, 'image/jpeg', 0.9));
 
     const processedImageData = {
       dataUrl,
       base64,
-      blob: await (await fetch(dataUrl)).blob()
+      blob
     };
 
     // Check if in multipage mode
