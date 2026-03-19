@@ -3,7 +3,7 @@
  * Handles caching and offline functionality
  */
 
-const CACHE_NAME = 'smartscan-v22';
+const CACHE_NAME = 'smartscan-v23';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   '/src/utils.js',
   '/src/camera.js',
   '/src/dropbox-api.js',
+  '/src/nextcloud-api.js',
   '/src/pdf-converter.js',
   '/src/ui.js',
   '/src/scanner.js',
