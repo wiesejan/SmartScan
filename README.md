@@ -5,7 +5,7 @@ A Progressive Web App for document digitization with AI-powered categorization a
 ## Features
 
 - **Camera Capture**: Take photos of documents directly in the app
-- **AI Analysis**: Automatic document categorization using Claude AI
+- **AI Analysis**: Automatic document categorization using keyword matching
 - **PDF Conversion**: Convert captured images to PDF format
 - **Dropbox Storage**: Automatically organize and upload to Dropbox
 - **Offline Support**: Works offline as a PWA
@@ -41,8 +41,7 @@ Then open `http://localhost:8000` in your browser.
 
 1. Open the app and click the settings icon (gear)
 2. Enter your **Dropbox Client ID** (see below)
-3. Enter your **Claude API Key** (see below)
-4. Click "Connect to Dropbox" and authorize
+3. Click "Connect to Dropbox" and authorize
 
 ## API Setup
 
@@ -60,16 +59,6 @@ Then open `http://localhost:8000` in your browser.
    - `files.content.write`
    - `files.content.read`
 
-### Claude API
-
-1. Go to [Anthropic Console](https://console.anthropic.com/)
-2. Create an account or sign in
-3. Go to API Keys
-4. Create a new API key
-5. Copy the key (starts with `sk-ant-`)
-
-**Note**: The Claude API requires the `anthropic-dangerous-direct-browser-access` header for browser usage. This is enabled in the app.
-
 ## Project Structure
 
 ```
@@ -81,7 +70,6 @@ SmartScan/
 │   ├── app.js              # Main application logic
 │   ├── config.js           # Configuration
 │   ├── camera.js           # Camera access and capture
-│   ├── claude-api.js       # Claude API integration
 │   ├── dropbox-api.js      # Dropbox OAuth + upload
 │   ├── pdf-converter.js    # Image to PDF conversion
 │   ├── ui.js               # UI state management
@@ -167,17 +155,12 @@ Camera access requires HTTPS (except localhost).
 - Check redirect URI matches exactly
 - Clear browser data and retry
 
-### Claude API errors
-- Verify API key is valid
-- Check API key has sufficient credits
-- Rate limiting: wait and retry
-
 ## Security Notes
 
-- API keys are stored in browser localStorage
-- Dropbox tokens are stored in sessionStorage
-- No data is sent to third parties except Dropbox and Anthropic
-- All processing happens client-side
+- Dropbox tokens are stored in sessionStorage (cleared on tab close)
+- Nextcloud app password is stored in sessionStorage
+- All OCR processing happens client-side (Tesseract.js)
+- No document data is sent to third-party AI services
 
 ## License
 
