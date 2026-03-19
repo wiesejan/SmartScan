@@ -13,7 +13,7 @@
   <!-- connect-src uses https: to allow user-configured Nextcloud servers (dynamic URLs) -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' https://cdnjs.cloudflare.com https://docs.opencv.org https://cdn.jsdelivr.net 'wasm-unsafe-eval';
+    script-src 'self' https://cdnjs.cloudflare.com https://docs.opencv.org https://cdn.jsdelivr.net 'wasm-unsafe-eval' 'unsafe-eval';
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     media-src 'self' blob:;
@@ -39,8 +39,7 @@
        a stable integrity hash. A wrong hash silently blocks the script and
        breaks auto capture. jsPDF above uses cdnjs which publishes verified
        hashes — OpenCV does not. -->
-  <script async src="https://docs.opencv.org/4.9.0/opencv.js"
-          onload="console.log('OpenCV.js loaded')"></script>
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js"></script>
 </head>
 <body>
   <div class="app" id="app">
