@@ -35,9 +35,11 @@
           crossorigin="anonymous"
           defer></script>
   <!-- OpenCV.js for document scanning -->
+  <!-- No SRI hash: docs.opencv.org is behind Cloudflare and does not publish
+       a stable integrity hash. A wrong hash silently blocks the script and
+       breaks auto capture. jsPDF above uses cdnjs which publishes verified
+       hashes — OpenCV does not. -->
   <script async src="https://docs.opencv.org/4.9.0/opencv.js"
-          integrity="sha384-DDUJ4gKmkdPP6CvvV04uxFHNwDzj5czh9dqXtw/tJg3Y3VDTPzWWXxXI72jm1TIU"
-          crossorigin="anonymous"
           onload="console.log('OpenCV.js loaded')"></script>
 </head>
 <body>
