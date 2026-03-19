@@ -3,7 +3,7 @@
  * Handles caching and offline functionality
  */
 
-const CACHE_NAME = 'smartscan-v24';
+const CACHE_NAME = 'smartscan-v25';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -115,11 +115,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle navigation requests
+  // Handle navigation requests — network-first so CSP and HTML changes
+  // reach users immediately; fall back to cache only when offline.
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html')
-        .then((response) => response || fetch(request))
+      fetch(request)
+        .then((networkResponse) => {
+          // Update the cached copy with the fresh response
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return networkResponse;
+        })
         .catch(() => caches.match('/index.html'))
     );
     return;
